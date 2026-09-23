@@ -1,6 +1,4 @@
 node_modules/
-dist/
-build/
-coverage/
-.vite/
-.playwright/
+CLAUDE.md
+DESIGN.md
+.claude
