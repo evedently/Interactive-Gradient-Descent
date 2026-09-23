@@ -1,0 +1,725 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #14161a;
+  color: #e8e8ec;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(320px, 1fr) var(--secondary-col-width, 380px);
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  gap: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+  position: relative;
+  min-width: 1020px;
+  overflow-x: auto;
+}
+
+.workspace-mode-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.persistence-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.persistence-panel button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #3a4048;
+  background: #262a31;
+  color: #e8e8ec;
+  cursor: pointer;
+}
+
+.persistence-panel button:hover {
+  background: #323841;
+}
+
+.persistence-error {
+  color: #ff8a80;
+  font-size: 12px;
+  max-width: 320px;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.mode-toggle button {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid #3a4048;
+  background: #262a31;
+  color: #e8e8ec;
+  cursor: pointer;
+}
+
+.mode-toggle button.active {
+  background: #3a6ea5;
+  border-color: #4c86c2;
+}
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.center-view {
+  position: relative;
+  min-width: 0;
+  /* Grid items default to min-height: auto, letting their content's
+     intrinsic size grow the 1fr row instead of being constrained by it.
+     Surface3D's <canvas> resizes to match its container via a
+     ResizeObserver — without this, that becomes a feedback loop (canvas
+     grows the row -> row grows the canvas -> ...), a few pixels taller
+     every animation frame, which is what earlier looked like the camera
+     continuously "panning forward" (the view was actually just being
+     rendered into an ever-taller, ever-more-zoomed-out canvas). */
+  min-height: 0;
+  overflow: hidden;
+}
+
+.secondary-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.secondary-collapse-tab {
+  align-self: flex-end;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #3a4048;
+  background: #262a31;
+  color: #e8e8ec;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.secondary-collapse-tab:hover {
+  background: #323841;
+}
+
+.secondary-view-collapsed {
+  align-items: center;
+  overflow: hidden;
+}
+
+.secondary-view-collapsed .secondary-collapse-tab {
+  align-self: center;
+}
+
+.secondary-view-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.panel {
+  background: #1d2026;
+  border: 1px solid #2c3038;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.panel h2,
+.secondary-view h2 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9aa1ac;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  color: #9aa1ac;
+  margin-bottom: 4px;
+}
+
+.loss-input,
+.rule-editor {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 14px;
+}
+
+.loss-input {
+  padding: 8px;
+  background: #101215;
+  color: #e8e8ec;
+  border: 1px solid #333842;
+  border-radius: 6px;
+}
+
+.loss-input.has-error {
+  border-color: #d9534f;
+}
+
+.rule-editor {
+  border: 1px solid #333842;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.rule-editor .cm-editor {
+  font-size: 13px;
+}
+
+.error-message {
+  color: #ff8a80;
+  font-size: 12px;
+  margin: 6px 0 0 0;
+}
+
+.error-list {
+  list-style: none;
+  margin: 6px 0 0 0;
+  padding: 0;
+}
+
+.katex-preview {
+  margin-top: 10px;
+  padding: 8px;
+  background: #101215;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.gradient-display {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #b7bdc7;
+}
+
+.gradient-method {
+  color: #767c86;
+  margin-bottom: 2px;
+}
+
+.gradient-formula {
+  margin: 2px 0;
+}
+
+.differentiability-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.warning-badge {
+  display: inline-block;
+  background: #5c531e40;
+  color: #e0d17e;
+  border: 1px solid #5c531e;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.manual-gradient-override {
+  margin-top: 10px;
+  border-top: 1px solid #2c3038;
+  padding-top: 8px;
+}
+
+.manual-gradient-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #b7bdc7;
+  cursor: pointer;
+}
+
+.manual-gradient-fields {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manual-gradient-field .loss-input {
+  margin-top: 2px;
+}
+
+.field-hint {
+  color: #767c86;
+  font-size: 12px;
+  margin: 0;
+}
+
+.parameter-row {
+  margin-bottom: 10px;
+}
+
+.parameter-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.parameter-row-header label {
+  font-family: "Cascadia Code", "Consolas", monospace;
+  color: #d6dae1;
+}
+
+.parameter-range-hint {
+  color: #767c86;
+  font-size: 11px;
+}
+
+.parameter-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.parameter-row-controls input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.parameter-number-input {
+  width: 72px;
+  background: #101215;
+  color: #e8e8ec;
+  border: 1px solid #333842;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+}
+
+.parameter-reset-button {
+  background: #262a31;
+  border: 1px solid #3a4048;
+  border-radius: 4px;
+  color: #d6dae1;
+  cursor: pointer;
+  padding: 2px 8px;
+  line-height: 1.4;
+}
+
+.parameter-reset-button:hover {
+  background: #323841;
+}
+
+.rule-live-values {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 4px;
+  font-size: 12px;
+}
+
+.live-values-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.live-values-label {
+  color: #767c86;
+  margin-right: 2px;
+}
+
+.live-value-chip {
+  background: #262a31;
+  border: 1px solid #3a4048;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  color: #d6dae1;
+}
+
+.controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.controls-bar button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #3a4048;
+  background: #262a31;
+  color: #e8e8ec;
+  cursor: pointer;
+}
+
+.controls-bar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.controls-bar button:hover:not(:disabled) {
+  background: #323841;
+}
+
+.status-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.status-idle {
+  background: #33384220;
+  color: #9aa1ac;
+}
+.status-running {
+  background: #1e5c3a;
+  color: #7ee0a3;
+}
+.status-paused {
+  background: #5c531e;
+  color: #e0d17e;
+}
+.status-error {
+  background: #5c1e1e;
+  color: #e08a8a;
+}
+
+.surface3d-container {
+  position: relative;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2c3038;
+}
+
+.view-controls {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+}
+
+.view-controls button {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #3a4048;
+  background: #1d2026cc;
+  color: #e8e8ec;
+  cursor: pointer;
+}
+
+.view-controls button.active {
+  background: #3a6ea5;
+  border-color: #4c86c2;
+}
+
+.contour-container canvas {
+  display: block;
+  border-radius: 8px;
+  border: 1px solid #2c3038;
+  touch-action: none;
+}
+
+.status-hud {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 6;
+  background: #1d2026ee;
+  border: 1px solid #2c3038;
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 220px;
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+}
+
+.status-hud-rule {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2c3038;
+}
+
+.status-hud-rule:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.status-hud-rule-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.color-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-hud dl {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.status-hud dt {
+  color: #9aa1ac;
+}
+
+.status-hud dd {
+  margin: 0;
+  text-align: right;
+}
+
+.warning-message {
+  color: #ff8a80;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.rule-list-toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.rule-list-toolbar button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #3a4048;
+  background: #262a31;
+  color: #e8e8ec;
+  cursor: pointer;
+}
+
+.rule-list-toolbar button:hover {
+  background: #323841;
+}
+
+.rule-panel {
+  transition: opacity 0.15s;
+}
+
+.rule-panel-hidden {
+  opacity: 0.55;
+}
+
+.rule-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rule-color-input {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #3a4048;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.rule-name-input {
+  flex: 1;
+  min-width: 0;
+  background: #101215;
+  color: #e8e8ec;
+  border: 1px solid #333842;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.rule-collapse-button,
+.rule-remove-button {
+  background: #262a31;
+  border: 1px solid #3a4048;
+  border-radius: 4px;
+  color: #d6dae1;
+  cursor: pointer;
+  padding: 2px 8px;
+}
+
+.rule-remove-button:hover {
+  background: #5c1e1e;
+}
+
+.rule-mini-status {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #9aa1ac;
+  margin: 4px 0 8px 0;
+  font-family: "Cascadia Code", "Consolas", monospace;
+}
+
+.rule-noise-status {
+  margin-top: -4px;
+  color: #e0d17e;
+}
+
+.sim-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sim-settings-row .field-label {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.seed-input {
+  width: 90px;
+  background: #101215;
+  color: #e8e8ec;
+  border: 1px solid #333842;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+}
+
+.sim-settings-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.comparison-table-wrap {
+  overflow-x: auto;
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 5px 8px;
+  text-align: left;
+  border-bottom: 1px solid #2c3038;
+}
+
+.comparison-table th {
+  color: #9aa1ac;
+  font-weight: 500;
+}
+
+.comparison-row-hidden {
+  opacity: 0.5;
+}
+
+.rule-editor-textarea {
+  font-family: "Cascadia Code", "Consolas", monospace;
+  resize: vertical;
+}
+
+.primary-variable-names-row,
+.dataset-initial-values-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.dataset-initial-value-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #b7bdc7;
+}
+
+.dataset-center-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.dataset-placeholder {
+  color: #9aa1ac;
+  font-size: 14px;
+  margin: 24px;
+}
+
+.metric-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.metric-chart {
+  background: #1d2026;
+  border: 1px solid #2c3038;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.metric-chart-title {
+  font-size: 12px;
+  color: #9aa1ac;
+  margin-bottom: 6px;
+}
+
+.metric-chart-svg {
+  width: 100%;
+  height: 110px;
+  background: #101215;
+  border-radius: 4px;
+  display: block;
+}
+
+.metric-chart-range {
+  font-size: 11px;
+  color: #767c86;
+  margin-top: 4px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+}
