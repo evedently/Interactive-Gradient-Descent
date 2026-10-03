@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { evaluateLoss } from "../domain/lossFunction";
 import type { SimulationRunner } from "../domain/simulation/SimulationRunner";
 import { decimateForDisplay, MAX_RENDERED_TRAJECTORY_POINTS } from "../domain/visualization/decimate";
-import { buildSurfaceGeometry, normalizeHeight, SURFACE_BOUNDS, VISUAL_HEIGHT } from "../domain/visualization/surfaceGeometry";
+import { buildSurfaceGeometry, normalizeHeight, surfaceViewTransformFor, VISUAL_HEIGHT, type SurfaceViewTransform } from "../domain/visualization/surfaceGeometry";
 import { useRunnersVersion } from "../hooks/useRunnersVersion";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
 import { useWorkspaceStore } from "../state/workspaceStore";
@@ -30,14 +30,17 @@ function clamp(value: number, min: number, max: number): number {
  * above the tallest possible surface point. Its only job is to give the
  * drag gesture a reliable target to raycast against, even over a masked
  * (missing-triangle) region of the surface where the surface mesh itself
- * has no geometry to hit.
+ * has no geometry to hit. Fixed size/position, like everything else here —
+ * `surfaceViewTransformFor` keeps the whole scene in the same visual
+ * footprint regardless of the presenter's actual view bounds, so this
+ * plane never needs to change.
  */
 function DragCatchPlane({
   draggingRef,
   onDragMove,
 }: {
   draggingRef: MutableRefObject<boolean>;
-  onDragMove: (worldX: number, worldZ: number) => void;
+  onDragMove: (visualX: number, visualZ: number) => void;
 }) {
   return (
     <mesh
@@ -75,30 +78,52 @@ function UpdateArrow({ origin, direction, color }: { origin: THREE.Vector3; dire
   return <primitive object={arrow} />;
 }
 
-/** One visible rule's trajectory + current point + pending update vector, all in this rule's own color. */
-function RuleOverlay({ rule, runner, min, span }: { rule: RuleWorkspaceEntry; runner: SimulationRunner; min: number; span: number }) {
+/**
+ * One visible rule's trajectory + current point + pending update vector, all
+ * in this rule's own color. `runner.current`/`.trajectory` are always in
+ * RAW loss-space coordinates — `viewTransform` maps each one into the same
+ * fixed visual footprint the mesh itself is built in (DESIGN.md §8), so a
+ * trajectory stays correctly plotted on the surface no matter how the
+ * presenter has zoomed the view.
+ */
+function RuleOverlay({
+  rule,
+  runner,
+  min,
+  span,
+  viewTransform,
+}: {
+  rule: RuleWorkspaceEntry;
+  runner: SimulationRunner;
+  min: number;
+  span: number;
+  viewTransform: SurfaceViewTransform;
+}) {
   const current = runner.current;
   const currentHeight = normalizeHeight(current.loss, min, span);
   const peek = runner.peekUpdate();
   const trajectoryPoints = useMemo(
     () =>
       decimateForDisplay(runner.trajectory, MAX_RENDERED_TRAJECTORY_POINTS).map(
-        (p) => new THREE.Vector3(p.x, normalizeHeight(p.loss, min, span) + 0.02, p.y),
+        (p) => new THREE.Vector3(viewTransform.toVisualX(p.x), normalizeHeight(p.loss, min, span) + 0.02, viewTransform.toVisualZ(p.y)),
       ),
-    [runner, min, span],
+    [runner, min, span, viewTransform],
   );
+  const visualX = viewTransform.toVisualX(current.x);
+  const visualZ = viewTransform.toVisualZ(current.y);
 
   return (
     <>
-      <mesh position={[current.x, currentHeight + 0.05, current.y]}>
+      <mesh position={[visualX, currentHeight + 0.05, visualZ]}>
         <sphereGeometry args={[0.18, 16, 16]} />
         <meshStandardMaterial color={rule.color} />
       </mesh>
       {trajectoryPoints.length > 1 ? <TrajectoryLine points={trajectoryPoints} color={rule.color} /> : null}
       {peek.ok ? (
         <UpdateArrow
-          origin={new THREE.Vector3(current.x, currentHeight + 0.05, current.y)}
-          direction={new THREE.Vector3(peek.dx, 0, peek.dy)}
+          origin={new THREE.Vector3(visualX, currentHeight + 0.05, visualZ)}
+          // A delta, not a position — scaled, never re-centered.
+          direction={new THREE.Vector3(peek.dx * viewTransform.scaleX, 0, peek.dy * viewTransform.scaleZ)}
           color={rule.color}
         />
       ) : null}
@@ -113,20 +138,24 @@ export function Surface3D({ entries }: Props) {
   const setStartPoint = useWorkspaceStore((s) => s.setStartPoint);
   const cameraMode = useWorkspaceStore((s) => s.cameraMode);
   const setCameraMode = useWorkspaceStore((s) => s.setCameraMode);
+  const bounds = useWorkspaceStore((s) => s.surfaceBounds);
 
-  const { geometry, min, span } = useMemo(() => buildSurfaceGeometry(activeLossAst), [activeLossAst]);
+  const { geometry, min, span } = useMemo(() => buildSurfaceGeometry(activeLossAst, bounds), [activeLossAst, bounds]);
+  const viewTransform = useMemo(() => surfaceViewTransformFor(bounds), [bounds]);
 
   const draggingRef = useRef(false);
   const [dragPreview, setDragPreview] = useState<{ x: number; y: number } | null>(null);
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
   const clampToBounds = (x: number, y: number) => ({
-    x: clamp(x, SURFACE_BOUNDS.xMin, SURFACE_BOUNDS.xMax),
-    y: clamp(y, SURFACE_BOUNDS.yMin, SURFACE_BOUNDS.yMax),
+    x: clamp(x, bounds.xMin, bounds.xMax),
+    y: clamp(y, bounds.yMin, bounds.yMax),
   });
 
   const markerPoint = dragPreview ?? startPoint;
   const markerHeight = normalizeHeight(evaluateLoss(activeLossAst, markerPoint.x, markerPoint.y), min, span);
+  const markerVisualX = viewTransform.toVisualX(markerPoint.x);
+  const markerVisualZ = viewTransform.toVisualZ(markerPoint.y);
 
   useEffect(() => {
     const handleWindowPointerUp = () => {
@@ -164,11 +193,14 @@ export function Surface3D({ entries }: Props) {
           <meshStandardMaterial vertexColors color="#ffffff" side={THREE.DoubleSide} />
         </mesh>
 
-        <DragCatchPlane draggingRef={draggingRef} onDragMove={(x, z) => setDragPreview(clampToBounds(x, z))} />
+        <DragCatchPlane
+          draggingRef={draggingRef}
+          onDragMove={(visualX, visualZ) => setDragPreview(clampToBounds(viewTransform.toRawX(visualX), viewTransform.toRawZ(visualZ)))}
+        />
 
         {/* Start-point marker: draggable, shared by every rule. */}
         <mesh
-          position={[markerPoint.x, markerHeight + 0.05, markerPoint.y]}
+          position={[markerVisualX, markerHeight + 0.05, markerVisualZ]}
           onPointerDown={(e: ThreeEvent<PointerEvent>) => {
             e.stopPropagation();
             draggingRef.current = true;
@@ -184,7 +216,7 @@ export function Surface3D({ entries }: Props) {
 
         {entries
           .filter((e) => e.rule.visible)
-          .map((e) => <RuleOverlay key={e.rule.id} rule={e.rule} runner={e.runner} min={min} span={span} />)}
+          .map((e) => <RuleOverlay key={e.rule.id} rule={e.rule} runner={e.runner} min={min} span={span} viewTransform={viewTransform} />)}
 
         {/* enableDamping defaults to true in drei's OrbitControls — any residual scroll/drag velocity would otherwise keep easing the camera forward/around for a second or two after the gesture ends, which reads as unwanted drift for a precise teaching tool. Off entirely: input maps directly to camera motion. */}
         <OrbitControls

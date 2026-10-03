@@ -1,4 +1,5 @@
 import { useWorkspaceStore } from "../state/workspaceStore";
+import { CollapsiblePanel } from "./CollapsiblePanel";
 
 const MAX_NOISE = 5;
 
@@ -16,8 +17,7 @@ export function SimulationSettingsPanel() {
   const setNoiseLevel = useWorkspaceStore((s) => s.setNoiseLevel);
 
   return (
-    <section className="panel">
-      <h2>Simulation settings</h2>
+    <CollapsiblePanel title="Simulation settings">
       <div className="sim-settings-row">
         <label className="field-label" htmlFor="seed-input">
           Seed
@@ -59,6 +59,6 @@ export function SimulationSettingsPanel() {
           }}
         />
       </div>
-    </section>
+    </CollapsiblePanel>
   );
 }

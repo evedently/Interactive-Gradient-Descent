@@ -3,7 +3,8 @@ import type { ExprNode } from "../expr/ast";
 import { colorForLevelNormalized } from "./contourColor";
 import { computeLossGrid, finiteRange, type GridBounds, type LossGrid } from "./grid";
 
-export const SURFACE_BOUNDS: GridBounds = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+/** Surface mode's default view bounds — presenter-configurable (workspace-level `surfaceBounds`, §8) so functions whose interesting landscape sits at a much smaller or larger scale than ±10 can still be framed. This is only the fallback used before the presenter changes it, and by tests that don't care about a specific range. */
+export const DEFAULT_SURFACE_BOUNDS: GridBounds = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
 export const SURFACE_RESOLUTION = 60;
 export const VISUAL_HEIGHT = 4;
 
@@ -79,10 +80,71 @@ export function buildGeometryFromGrid(grid: Pick<LossGrid, "resolution" | "xs" |
   return { geometry, min, max, span };
 }
 
-/** Surface mode's loss-function surface: samples `ast` over the fixed `SURFACE_BOUNDS`/`SURFACE_RESOLUTION` and builds its mesh. */
-export function buildSurfaceGeometry(ast: ExprNode): SurfaceGeometryResult {
-  const grid = computeLossGrid(ast, SURFACE_BOUNDS, SURFACE_RESOLUTION);
-  return buildGeometryFromGrid(grid);
+const DEFAULT_BOUNDS_SPAN_X = DEFAULT_SURFACE_BOUNDS.xMax - DEFAULT_SURFACE_BOUNDS.xMin;
+const DEFAULT_BOUNDS_SPAN_Y = DEFAULT_SURFACE_BOUNDS.yMax - DEFAULT_SURFACE_BOUNDS.yMin;
+
+export interface SurfaceViewTransform {
+  scaleX: number;
+  scaleZ: number;
+  centerX: number;
+  centerZ: number;
+  toVisualX: (x: number) => number;
+  toVisualZ: (y: number) => number;
+  toRawX: (visualX: number) => number;
+  toRawZ: (visualZ: number) => number;
+}
+
+/**
+ * Maps the presenter's current view bounds onto a FIXED visual footprint —
+ * the same ~20x20 world-space square the original, always-±10 surface used
+ * (DESIGN.md §8). This is what actually makes "orders of magnitude smaller
+ * or bigger than 10" work in the 3D view: mesh height is already
+ * independently normalized to `VISUAL_HEIGHT` regardless of the loss
+ * function's raw magnitude (see `buildGeometryFromGrid`), but X/Z were not
+ * — a ±0.001 window would otherwise render actual-scale vertices, giving a
+ * mesh so laterally tiny next to its own (always ~4-unit) height that nothing
+ * useful is visible, while a ±10,000 window would blow past the camera's
+ * far plane. Normalizing X/Z the same way height already is means the
+ * camera, axes/grid helpers, and drag-catch plane never need to change at
+ * all — they stay at their original fixed values, and every position that
+ * feeds a Three.js `position`/point (mesh vertices, the start-point marker,
+ * trajectories, the update arrow) is mapped through this SAME transform so
+ * everything stays aligned. An off-center window (e.g. `xMin: 0, xMax: 20`)
+ * is centered before scaling, so it's the WINDOW's center that lands at the
+ * visual origin, not literal (0,0).
+ */
+export function surfaceViewTransformFor(bounds: GridBounds): SurfaceViewTransform {
+  const scaleX = DEFAULT_BOUNDS_SPAN_X / (bounds.xMax - bounds.xMin);
+  const scaleZ = DEFAULT_BOUNDS_SPAN_Y / (bounds.yMax - bounds.yMin);
+  const centerX = (bounds.xMin + bounds.xMax) / 2;
+  const centerZ = (bounds.yMin + bounds.yMax) / 2;
+  return {
+    scaleX,
+    scaleZ,
+    centerX,
+    centerZ,
+    toVisualX: (x) => (x - centerX) * scaleX,
+    toVisualZ: (y) => (y - centerZ) * scaleZ,
+    toRawX: (visualX) => visualX / scaleX + centerX,
+    toRawZ: (visualZ) => visualZ / scaleZ + centerZ,
+  };
+}
+
+/**
+ * Surface mode's loss-function surface: samples `ast` over `bounds` (the
+ * presenter's current view, defaulting to `DEFAULT_SURFACE_BOUNDS`) at
+ * `SURFACE_RESOLUTION`, then maps the sampled x/y coordinates through
+ * `surfaceViewTransformFor` before building the mesh — the returned
+ * geometry's X/Z are always in the same fixed VISUAL footprint regardless
+ * of how large or small `bounds` actually is (see that function's doc
+ * comment). At the default ±10 bounds this transform is the identity, so
+ * existing callers/tests that don't pass `bounds` see no change at all.
+ */
+export function buildSurfaceGeometry(ast: ExprNode, bounds: GridBounds = DEFAULT_SURFACE_BOUNDS): SurfaceGeometryResult {
+  const grid = computeLossGrid(ast, bounds, SURFACE_RESOLUTION);
+  const t = surfaceViewTransformFor(bounds);
+  const visualGrid = { ...grid, xs: Float64Array.from(grid.xs, t.toVisualX), ys: Float64Array.from(grid.ys, t.toVisualZ) };
+  return buildGeometryFromGrid(visualGrid);
 }
 
 /** Normalizes a raw loss value to the same visual height scale as the surface mesh, for markers that must sit exactly on it. */

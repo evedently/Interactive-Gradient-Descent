@@ -4,6 +4,7 @@ import { exprToLatex } from "../domain/expr/toLatex";
 import { computeLossGradient } from "../domain/lossFunction";
 import { offsetToLineColumn } from "../domain/rules/ruleTypes";
 import { useWorkspaceStore } from "../state/workspaceStore";
+import { CollapsiblePanel } from "./CollapsiblePanel";
 
 function renderMathLine(latex: string): string {
   try {
@@ -53,8 +54,7 @@ export function LossFunctionEditor() {
   const gyFormulaHtml = activeLoss.symbolicGradient ? renderMathLine(`\\text{gy} = ${exprToLatex(activeLoss.symbolicGradient.gy)}`) : null;
 
   return (
-    <section className="panel">
-      <h2>Loss function</h2>
+    <CollapsiblePanel title="Loss function">
       <label className="field-label" htmlFor="loss-input">
         f(x, y) =
       </label>
@@ -148,6 +148,6 @@ export function LossFunctionEditor() {
           </div>
         ) : null}
       </div>
-    </section>
+    </CollapsiblePanel>
   );
 }

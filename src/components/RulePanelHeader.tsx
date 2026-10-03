@@ -1,6 +1,8 @@
+import type { DragEvent } from "react";
 import type { RunnerStatus } from "../domain/simulation/types";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
 import { useWorkspaceStore } from "../state/workspaceStore";
+import { RULE_DRAG_MIME } from "./ruleDrag";
 
 interface Props {
   rule: RuleWorkspaceEntry;
@@ -16,8 +18,19 @@ export function RulePanelHeader({ rule, status, canRemove }: Props) {
   const setRuleCollapsed = useWorkspaceStore((s) => s.setRuleCollapsed);
   const removeRule = useWorkspaceStore((s) => s.removeRule);
 
+  const startDrag = (e: DragEvent<HTMLSpanElement>) => {
+    e.dataTransfer.setData(RULE_DRAG_MIME, rule.id);
+    e.dataTransfer.effectAllowed = "move";
+    // Show the whole panel as the drag ghost, not just the small grip.
+    const panel = e.currentTarget.closest(".rule-panel");
+    if (panel) e.dataTransfer.setDragImage(panel, 12, 12);
+  };
+
   return (
     <div className="rule-panel-header">
+      <span className="rule-drag-handle" draggable onDragStart={startDrag} title="Drag to reorder" aria-label="Drag to reorder">
+        ⠿
+      </span>
       <input
         type="checkbox"
         checked={rule.visible}

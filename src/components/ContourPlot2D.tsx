@@ -3,27 +3,26 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { colorForLevel } from "../domain/visualization/contourColor";
 import { decimateForDisplay, MAX_RENDERED_TRAJECTORY_POINTS } from "../domain/visualization/decimate";
-import { computeLossGrid, finiteRange, type GridBounds } from "../domain/visualization/grid";
+import { computeLossGrid, type GridBounds, finiteRange } from "../domain/visualization/grid";
 import { createMaskedRegionPattern } from "../domain/visualization/maskedRegionPattern";
 import type { RuleRunnerEntry } from "./Surface3D";
 import { useRunnersVersion } from "../hooks/useRunnersVersion";
 import { useWorkspaceStore } from "../state/workspaceStore";
 
-const BOUNDS: GridBounds = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
 const RESOLUTION = 60;
 const CANVAS_SIZE = 440;
 const MARKER_HIT_RADIUS_PX = 14;
 
-function lossToCanvas(x: number, y: number): { px: number; py: number } {
-  const px = ((x - BOUNDS.xMin) / (BOUNDS.xMax - BOUNDS.xMin)) * CANVAS_SIZE;
+function lossToCanvas(x: number, y: number, bounds: GridBounds): { px: number; py: number } {
+  const px = ((x - bounds.xMin) / (bounds.xMax - bounds.xMin)) * CANVAS_SIZE;
   // Canvas Y grows downward; flip so larger loss-y is drawn higher up.
-  const py = CANVAS_SIZE - ((y - BOUNDS.yMin) / (BOUNDS.yMax - BOUNDS.yMin)) * CANVAS_SIZE;
+  const py = CANVAS_SIZE - ((y - bounds.yMin) / (bounds.yMax - bounds.yMin)) * CANVAS_SIZE;
   return { px, py };
 }
 
-function canvasToLoss(px: number, py: number): { x: number; y: number } {
-  const x = BOUNDS.xMin + (px / CANVAS_SIZE) * (BOUNDS.xMax - BOUNDS.xMin);
-  const y = BOUNDS.yMin + (1 - py / CANVAS_SIZE) * (BOUNDS.yMax - BOUNDS.yMin);
+function canvasToLoss(px: number, py: number, bounds: GridBounds): { x: number; y: number } {
+  const x = bounds.xMin + (px / CANVAS_SIZE) * (bounds.xMax - bounds.xMin);
+  const y = bounds.yMin + (1 - py / CANVAS_SIZE) * (bounds.yMax - bounds.yMin);
   return { x, y };
 }
 
@@ -35,6 +34,7 @@ export function ContourPlot2D({ entries }: Props) {
   const activeLossAst = useWorkspaceStore((s) => s.activeLoss.ast);
   const startPoint = useWorkspaceStore((s) => s.startPoint);
   const setStartPoint = useWorkspaceStore((s) => s.setStartPoint);
+  const bounds = useWorkspaceStore((s) => s.surfaceBounds);
 
   useRunnersVersion(entries.map((e) => e.runner));
 
@@ -42,7 +42,7 @@ export function ContourPlot2D({ entries }: Props) {
   const draggingRef = useRef(false);
   const [dragPreview, setDragPreview] = useState<{ x: number; y: number } | null>(null);
 
-  const grid = useMemo(() => computeLossGrid(activeLossAst, BOUNDS, RESOLUTION), [activeLossAst]);
+  const grid = useMemo(() => computeLossGrid(activeLossAst, bounds, RESOLUTION), [activeLossAst, bounds]);
   const { min, max } = useMemo(() => finiteRange(grid.values), [grid]);
   const span = max - min || 1;
 
@@ -118,13 +118,13 @@ export function ContourPlot2D({ entries }: Props) {
       ctx.lineWidth = 2;
       ctx.beginPath();
       decimateForDisplay(runner.trajectory, MAX_RENDERED_TRAJECTORY_POINTS).forEach((p, i) => {
-        const { px, py } = lossToCanvas(p.x, p.y);
+        const { px, py } = lossToCanvas(p.x, p.y, bounds);
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       });
       ctx.stroke();
 
-      const cur = lossToCanvas(current.x, current.y);
+      const cur = lossToCanvas(current.x, current.y, bounds);
       ctx.fillStyle = rule.color;
       ctx.beginPath();
       ctx.arc(cur.px, cur.py, 6, 0, Math.PI * 2);
@@ -132,7 +132,7 @@ export function ContourPlot2D({ entries }: Props) {
 
       const peek = runner.peekUpdate();
       if (peek.ok) {
-        const tip = lossToCanvas(current.x + peek.dx, current.y + peek.dy);
+        const tip = lossToCanvas(current.x + peek.dx, current.y + peek.dy, bounds);
         ctx.strokeStyle = "#ffd23f";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -143,7 +143,7 @@ export function ContourPlot2D({ entries }: Props) {
     }
 
     // Start-point marker (draggable, shared).
-    const mk = lossToCanvas(markerPoint.x, markerPoint.y);
+    const mk = lossToCanvas(markerPoint.x, markerPoint.y, bounds);
     ctx.fillStyle = "#e8e8e8";
     ctx.strokeStyle = "#333";
     ctx.lineWidth = 1.5;
@@ -151,13 +151,13 @@ export function ContourPlot2D({ entries }: Props) {
     ctx.arc(mk.px, mk.py, 7, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-  }, [grid, min, max, span, visibleEntries, markerPoint]);
+  }, [grid, min, max, span, visibleEntries, markerPoint, bounds]);
 
   const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
-    const mk = lossToCanvas(startPoint.x, startPoint.y);
+    const mk = lossToCanvas(startPoint.x, startPoint.y, bounds);
     if (Math.hypot(px - mk.px, py - mk.py) <= MARKER_HIT_RADIUS_PX) {
       draggingRef.current = true;
       for (const { runner } of entries) {
@@ -172,7 +172,7 @@ export function ContourPlot2D({ entries }: Props) {
     const rect = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
-    const { x, y } = canvasToLoss(Math.min(CANVAS_SIZE, Math.max(0, px)), Math.min(CANVAS_SIZE, Math.max(0, py)));
+    const { x, y } = canvasToLoss(Math.min(CANVAS_SIZE, Math.max(0, px)), Math.min(CANVAS_SIZE, Math.max(0, py)), bounds);
     setDragPreview({ x, y });
   };
 

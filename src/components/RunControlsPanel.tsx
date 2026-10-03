@@ -1,5 +1,6 @@
 import type { ChangeEvent } from "react";
 import { useWorkspaceStore } from "../state/workspaceStore";
+import { CollapsiblePanel } from "./CollapsiblePanel";
 
 const MIN_STEPS_PER_SECOND = 0.5;
 const MAX_STEPS_PER_SECOND = 60;
@@ -29,22 +30,13 @@ export function RunControlsPanel() {
   };
 
   return (
-    <section className="panel">
-      <h2>Run controls</h2>
+    <CollapsiblePanel title="Run controls">
       <div className="sim-settings-row">
         <label className="field-label" htmlFor="steps-per-second-input">
           Speed
         </label>
         <input
           id="steps-per-second-input"
-          type="range"
-          min={MIN_STEPS_PER_SECOND}
-          max={MAX_STEPS_PER_SECOND}
-          step={0.5}
-          value={stepsPerSecond}
-          onChange={(e) => setStepsPerSecond(Number(e.target.value))}
-        />
-        <input
           className="parameter-number-input"
           type="text"
           inputMode="decimal"
@@ -56,6 +48,16 @@ export function RunControlsPanel() {
         />
         <span className="field-hint">steps/sec, applies to every rule</span>
       </div>
+      <input
+        className="speed-slider"
+        type="range"
+        aria-label="Speed slider"
+        min={MIN_STEPS_PER_SECOND}
+        max={MAX_STEPS_PER_SECOND}
+        step={0.5}
+        value={stepsPerSecond}
+        onChange={(e) => setStepsPerSecond(Number(e.target.value))}
+      />
 
       <div className="sim-settings-row">
         <label className="field-label" htmlFor="max-abs-value-input">
@@ -119,6 +121,6 @@ export function RunControlsPanel() {
         />
         <span className="field-hint">early stopping — pauses cleanly, not an error</span>
       </div>
-    </section>
+    </CollapsiblePanel>
   );
 }

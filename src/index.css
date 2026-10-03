@@ -723,3 +723,146 @@ body {
   margin-top: 4px;
   font-family: "Cascadia Code", "Consolas", monospace;
 }
+
+/* Collapsible left-panel sections (CollapsiblePanel / SettingsGroup). */
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 8px 0;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.collapsible-header h2 {
+  margin: 0;
+}
+
+.collapsible-chevron {
+  color: #9aa1ac;
+  font-size: 13px;
+  padding: 0 4px;
+}
+
+.collapsible-header:hover .collapsible-chevron,
+.collapsible-header:hover h2 {
+  color: #e8e8ec;
+}
+
+.collapsible-collapsed > .collapsible-header {
+  margin-bottom: 0;
+}
+
+.settings-group {
+  border: 1px solid #2c3038;
+  border-radius: 10px;
+  padding: 10px;
+  background: #16181d;
+}
+
+.settings-group > .collapsible-header h2 {
+  margin: 0;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #c3c8d0;
+}
+
+.settings-group > .collapsible-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.speed-slider {
+  display: block;
+  width: 100%;
+  margin: -2px 0 12px 0;
+}
+
+/* Status HUD show/hide */
+.status-hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status-hud-header h2 {
+  margin: 0;
+}
+
+.status-hud:not(.status-hud-collapsed) .status-hud-header {
+  margin-bottom: 8px;
+}
+
+.status-hud-collapsed {
+  min-width: 0;
+  padding: 6px 10px;
+}
+
+.status-hud-toggle {
+  background: #262a31;
+  border: 1px solid #3a4048;
+  border-radius: 4px;
+  color: #d6dae1;
+  cursor: pointer;
+  padding: 2px 8px;
+}
+
+.status-hud-toggle:hover {
+  background: #323841;
+}
+
+/* Rule drag-to-reorder */
+.rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rule-list-item {
+  position: relative;
+}
+
+.rule-drop-before::before,
+.rule-drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: #4c9aff;
+  pointer-events: none;
+}
+
+.rule-drop-before::before {
+  top: -6px;
+}
+
+.rule-drop-after::after {
+  bottom: -6px;
+}
+
+.rule-drag-handle {
+  cursor: grab;
+  color: #6f7682;
+  font-size: 16px;
+  line-height: 1;
+  user-select: none;
+  padding: 0 2px;
+}
+
+.rule-drag-handle:hover {
+  color: #e8e8ec;
+}
+
+.rule-drag-handle:active {
+  cursor: grabbing;
+}

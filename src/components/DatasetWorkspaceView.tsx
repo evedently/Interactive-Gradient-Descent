@@ -6,12 +6,15 @@ import { DatasetPanel } from "./DatasetPanel";
 import { DatasetRulePanel } from "./DatasetRulePanel";
 import { DatasetSurface3D } from "./DatasetSurface3D";
 import { MetricCharts, type DatasetRuleRunnerEntry } from "./MetricCharts";
+import { ReorderableRuleList } from "./ReorderableRuleList";
 import { RunControlsPanel } from "./RunControlsPanel";
+import { SettingsGroup } from "./SettingsGroup";
 import { computeDatasetLossGrid, DATASET_SURFACE_RESOLUTION, type DatasetLossGrid } from "../domain/dataset/datasetLossGrid";
 import { buildDatasetExperimentCsv } from "../domain/persistence/experimentCsv";
 import type { DatasetRunTarget } from "../domain/simulation/DatasetTypes";
 import { deriveSeed } from "../domain/simulation/SeededRng";
 import { expandBoundsToInclude, resolveDatasetSurfaceBounds, type DatasetSurfaceBoundsState } from "../domain/visualization/datasetBounds";
+import { pauseHiddenRunners, playVisibleRunners } from "../domain/simulation/ruleRunControl";
 import { useContinuousRunAll } from "../hooks/useContinuousRunAll";
 import { useDatasetRunners } from "../hooks/useDatasetRunners";
 import { downloadTextFile } from "../lib/downloadFile";
@@ -129,9 +132,10 @@ export function DatasetWorkspaceView() {
     for (const { runner } of entries) runner.reset();
   };
 
-  const runAll = () => {
-    for (const { runner } of entries) runner.play();
-  };
+  // Hidden rules never run: "Run all" skips them, and hiding a running rule pauses it.
+  useEffect(() => pauseHiddenRunners(entries), [entries]);
+
+  const runAll = () => playVisibleRunners(entries);
 
   const exportCsv = () => {
     downloadTextFile("gradient-descent-dataset-experiment.csv", buildDatasetExperimentCsv(rules, runners, primaryVariables), "text/csv");
@@ -140,8 +144,10 @@ export function DatasetWorkspaceView() {
   return (
     <>
       <div className="left-panel">
-        <DatasetPanel />
-        <RunControlsPanel />
+        <SettingsGroup>
+          <DatasetPanel />
+          <RunControlsPanel />
+        </SettingsGroup>
 
         {ready ? (
           <>
@@ -151,9 +157,10 @@ export function DatasetWorkspaceView() {
               <button onClick={resetAll}>Reset all</button>
               <button onClick={exportCsv}>Export CSV</button>
             </div>
-            {entries.map(({ rule, runner }) => (
-              <DatasetRulePanel key={rule.id} rule={rule} runner={runner} canRemove={rules.length > 1} />
-            ))}
+            <ReorderableRuleList
+              entries={entries}
+              renderEntry={({ rule, runner }) => <DatasetRulePanel rule={rule} runner={runner} canRemove={rules.length > 1} />}
+            />
           </>
         ) : null}
       </div>

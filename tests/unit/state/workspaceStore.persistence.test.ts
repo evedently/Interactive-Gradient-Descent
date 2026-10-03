@@ -31,6 +31,7 @@ describe("workspaceStore: save/load (DESIGN.md §16/§18 Phase 8)", () => {
     store.setManualGradientGy("2*y");
     store.setSimLimits({ maxAbsPrimaryVariableValue: 500, maxAbsLoss: 9999, earlyStopLossThreshold: 1e-4 });
     store.setStepsPerSecond(12);
+    store.setSurfaceBounds({ xMin: -0.01, xMax: 0.01, yMin: -500, yMax: 500 });
 
     const before = useWorkspaceStore.getState();
     const snapshot = before.exportSnapshot();
@@ -50,6 +51,7 @@ describe("workspaceStore: save/load (DESIGN.md §16/§18 Phase 8)", () => {
     expect(after.manualGradientGySource).toBe(before.manualGradientGySource);
     expect(after.simLimits).toEqual(before.simLimits);
     expect(after.stepsPerSecond).toBe(before.stepsPerSecond);
+    expect(after.surfaceBounds).toEqual(before.surfaceBounds);
     expect(after.rules.map((r) => ({ name: r.name, color: r.color, visible: r.visible, collapsed: r.collapsed, sourceText: r.sourceText }))).toEqual(
       before.rules.map((r) => ({ name: r.name, color: r.color, visible: r.visible, collapsed: r.collapsed, sourceText: r.sourceText })),
     );
@@ -115,5 +117,50 @@ describe("workspaceStore: save/load (DESIGN.md §16/§18 Phase 8)", () => {
   it("exportSnapshot excludes secondaryPanelCollapsed (a view preference, not a workspace setting)", () => {
     const snapshot = useWorkspaceStore.getState().exportSnapshot() as unknown as Record<string, unknown>;
     expect(snapshot).not.toHaveProperty("secondaryPanelCollapsed");
+  });
+});
+
+describe("workspaceStore: moveRule", () => {
+  beforeEach(() => {
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    useWorkspaceStore.getState().addRule();
+  });
+
+  const ids = () => useWorkspaceStore.getState().rules.map((r) => r.id);
+
+  it("moveRule_lastToFirst_reordersRules", () => {
+    const [a, b, c] = ids();
+    useWorkspaceStore.getState().moveRule(c, 0);
+    expect(ids()).toEqual([c, a, b]);
+  });
+
+  it("moveRule_firstToLast_reordersRules", () => {
+    const [a, b, c] = ids();
+    useWorkspaceStore.getState().moveRule(a, 2);
+    expect(ids()).toEqual([b, c, a]);
+  });
+
+  it("moveRule_indexOutOfRange_clampsToEnds", () => {
+    const [a, b, c] = ids();
+    useWorkspaceStore.getState().moveRule(a, 99);
+    expect(ids()).toEqual([b, c, a]);
+    useWorkspaceStore.getState().moveRule(a, -5);
+    expect(ids()).toEqual([a, b, c]);
+  });
+
+  it("moveRule_unknownId_leavesOrderUnchanged", () => {
+    const before = ids();
+    useWorkspaceStore.getState().moveRule("nope", 0);
+    expect(ids()).toEqual(before);
+  });
+
+  it("moveRule_reorderedWorkspace_roundTripsThroughSnapshot", () => {
+    const [, , c] = ids();
+    useWorkspaceStore.getState().moveRule(c, 0);
+    const names = useWorkspaceStore.getState().rules.map((r) => r.name);
+    const snapshot = useWorkspaceStore.getState().exportSnapshot();
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    useWorkspaceStore.getState().loadWorkspaceSnapshot(snapshot);
+    expect(useWorkspaceStore.getState().rules.map((r) => r.name)).toEqual(names);
   });
 });
