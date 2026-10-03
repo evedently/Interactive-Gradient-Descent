@@ -4,7 +4,7 @@ import { INPUT_NAME, TARGET_NAME } from "../../domain/dataset/modelTemplates";
 import type { CompiledPerExampleLoss, Dataset } from "../../domain/dataset/types";
 import { pickFocusedEntry } from "../../domain/simulation/ruleRunControl";
 import { canvasTransform, type CanvasTransform } from "../../domain/visualization/canvasTransform";
-import { dataPlotBounds, logisticDecisionBoundary, sampleModelCurve, type CurvePoint } from "../../domain/visualization/modelCurve";
+import { dataPlotBounds, logisticDecisionBoundary, predictFromX, sampleModelCurve, type CurvePoint } from "../../domain/visualization/modelCurve";
 import { useRunnersVersion } from "../../hooks/useRunnersVersion";
 import { useWorkspaceStore } from "../../state/workspaceStore";
 import type { DatasetRuleRunnerEntry } from "../MetricCharts";
@@ -21,6 +21,7 @@ const POINT_COLOR = "#9aa1ac";
 const GHOST_COLOR = "#e8e8ec";
 const MISCLASSIFIED_COLOR = "#ff8a80";
 const PROBABILITY_THRESHOLD = 0.5;
+const PREDICT_MARK_COLOR = "#ffd23f";
 
 function toPolyline(points: readonly CurvePoint[], t: CanvasTransform): string {
   return points.map((p) => {
@@ -56,9 +57,15 @@ export function DataModelPlot({ entries }: Props) {
   const targetColumn = useWorkspaceStore((s) => s.targetColumn);
   const focusedRuleId = useWorkspaceStore((s) => s.focusedRuleId);
   const hover = useWorkspaceStore((s) => s.parameterHover);
+  const predictInput = useWorkspaceStore((s) => s.predictInput);
 
   const isLogistic = modelKind === "logistic";
-  const bounds = useMemo(() => (dataset ? dataPlotBounds(dataset, isLogistic) : null), [dataset, isLogistic]);
+  const dataBounds = useMemo(() => (dataset ? dataPlotBounds(dataset, isLogistic) : null), [dataset, isLogistic]);
+  // Widen the x range just enough to keep a Predict input that lies outside the data in view.
+  const bounds =
+    dataBounds && predictInput !== null
+      ? { ...dataBounds, xMin: Math.min(dataBounds.xMin, predictInput), xMax: Math.max(dataBounds.xMax, predictInput) }
+      : dataBounds;
   if (!dataset || !loss || !bounds) return <p className="dataset-placeholder">Load data and choose a model to see it here.</p>;
 
   const t = canvasTransform(bounds, PLOT_WIDTH, PLOT_HEIGHT);
@@ -85,6 +92,7 @@ export function DataModelPlot({ entries }: Props) {
             )}
             {ghost ? <polyline points={toPolyline(ghost, t)} fill="none" stroke={GHOST_COLOR} strokeWidth={1.5} strokeDasharray="5 4" opacity={0.8} /> : null}
             <DataPoints dataset={dataset} loss={loss} focused={focused} isLogistic={isLogistic} t={t} />
+            {predictInput !== null ? <PredictionMarks x={predictInput} loss={loss} entries={curves.map((c) => c.entry)} t={t} /> : null}
           </g>
         </g>
       </svg>
@@ -95,6 +103,22 @@ export function DataModelPlot({ entries }: Props) {
         </p>
       ) : null}
     </div>
+  );
+}
+
+/** Predict's input as a dotted vertical line, with a ringed dot where each visible rule's model meets it. */
+function PredictionMarks({ x, loss, entries, t }: { x: number; loss: CompiledPerExampleLoss; entries: DatasetRuleRunnerEntry[]; t: CanvasTransform }) {
+  const { px } = t.toCanvas(x, 0);
+  return (
+    <g>
+      <line x1={px} x2={px} y1={0} y2={PLOT_HEIGHT} stroke={PREDICT_MARK_COLOR} strokeDasharray="2 3" />
+      {entries.map((e) => {
+        const y = predictFromX(loss, e.runner.current.coords, x);
+        if (y === null || !Number.isFinite(y)) return null;
+        const { py } = t.toCanvas(x, y);
+        return <circle key={e.rule.id} cx={px} cy={py} r={5} fill={e.rule.color} stroke={PREDICT_MARK_COLOR} strokeWidth={2} />;
+      })}
+    </g>
   );
 }
 

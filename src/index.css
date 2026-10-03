@@ -980,3 +980,51 @@ body {
 .data-plot .field-hint {
   margin: 4px 0 0 0;
 }
+
+/* Step inspector (dataset mode, under the data/surface views) */
+.step-inspector {
+  flex: 0 0 auto;
+}
+
+.inspector-table td,
+.inspector-table th {
+  font-family: "Cascadia Code", "Consolas", monospace;
+  white-space: nowrap;
+}
+
+.inspector-mean-row td {
+  border-top: 1px solid #3a4048;
+  font-weight: 600;
+  color: #e8e8ec;
+}
+
+.inspector-more {
+  color: #9aa1ac;
+  font-style: italic;
+}
+
+.inspector-update {
+  margin-top: 8px;
+}
+
+.inspector-update-list {
+  margin: 4px 0 8px 0;
+  padding-left: 18px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+}
+
+/* Predict (dataset mode, right panel) */
+.predict-results {
+  list-style: none;
+  margin: 0 0 8px 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.predict-results li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}

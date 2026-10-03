@@ -87,6 +87,7 @@ function datasetStateFromSnapshot(snapshot: WorkspaceSnapshot, primaryVariables:
     modelDefinesPrediction: model.definesPrediction,
     focusedRuleId: null,
     parameterHover: null,
+    predictInput: null,
     datasetInitialValues: snapshot.datasetInitialValues,
     batchSize: snapshot.batchSize,
     datasetRunTargetKind: snapshot.datasetRunTargetKind,

@@ -141,6 +141,8 @@ export interface DatasetSlice {
   focusedRuleId: string | null;
   /** View-only (never saved): parameters under the pointer on the contour, drawn as a ghost model in the data plot. */
   parameterHover: Record<string, number> | null;
+  /** View-only (never saved): the x value typed into Predict, marked on the data plot. */
+  predictInput: number | null;
 
   /** Numeric-only initial values for the primary variables in dataset mode — there is no draggable start point (§7). */
   datasetInitialValues: Record<string, number>;
@@ -162,6 +164,7 @@ export interface DatasetSlice {
   setPerExampleLossSourceText: (text: string) => void;
   setFocusedRuleId: (id: string | null) => void;
   setParameterHover: (coords: Record<string, number> | null) => void;
+  setPredictInput: (x: number | null) => void;
   setDatasetInitialValue: (name: string, value: number) => void;
   /** Sets several initial values at once (e.g. both primary variables from a single drag gesture on the loss surface/contour) as one store update instead of one per name. */
   setDatasetInitialValues: (values: Readonly<Record<string, number>>) => void;

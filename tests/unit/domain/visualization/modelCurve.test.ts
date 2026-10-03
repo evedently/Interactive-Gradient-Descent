@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MODEL_TEMPLATES } from "../../../../src/domain/dataset/modelTemplates";
 import { compilePerExampleLoss } from "../../../../src/domain/dataset/perExampleLoss";
-import { dataPlotBounds, logisticDecisionBoundary, sampleModelCurve } from "../../../../src/domain/visualization/modelCurve";
+import { dataPlotBounds, logisticDecisionBoundary, predictFromX, sampleModelCurve } from "../../../../src/domain/visualization/modelCurve";
 
 const WB = [{ name: "w" }, { name: "b" }];
 
@@ -79,5 +79,16 @@ describe("logisticDecisionBoundary", () => {
 
   it("logisticDecisionBoundary_zeroWeight_null", () => {
     expect(logisticDecisionBoundary({ w: 0, b: 1 })).toBeNull();
+  });
+});
+
+describe("predictFromX", () => {
+  it("predictFromX_linear_isWxPlusB", () => {
+    expect(predictFromX(compile(MODEL_TEMPLATES.linear.sourceText), { w: 3, b: -1 }, 2)).toBe(5);
+  });
+
+  it("predictFromX_predictionNeedsAnotherColumn_null", () => {
+    const loss = compile("prediction = w * x + b * extra\nloss = (prediction - y)^2", ["x", "y", "extra"]);
+    expect(predictFromX(loss, { w: 1, b: 1 }, 2)).toBeNull();
   });
 });

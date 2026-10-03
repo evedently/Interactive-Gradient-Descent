@@ -4,6 +4,8 @@ import { DatasetComparisonTable } from "./DatasetComparisonTable";
 import { DatasetContourPlot2D } from "./DatasetContourPlot2D";
 import { DatasetPanel } from "./DatasetPanel";
 import { DataModelPlot } from "./dataset/DataModelPlot";
+import { PredictPanel } from "./dataset/PredictPanel";
+import { StepInspector } from "./dataset/StepInspector";
 import { DatasetRulePanel } from "./DatasetRulePanel";
 import { DatasetSurface3D } from "./DatasetSurface3D";
 import { MetricCharts, type DatasetRuleRunnerEntry } from "./MetricCharts";
@@ -158,31 +160,35 @@ export function DatasetWorkspaceView() {
 
       <div className="center-view dataset-center-view">
         {ready ? (
-          <div className="dataset-views">
-            <div className="dataset-view-pane">
-              <DataModelPlot entries={entries} />
+          <>
+            <div className="dataset-views">
+              <div className="dataset-view-pane">
+                <DataModelPlot entries={entries} />
+              </div>
+              <div className="dataset-view-pane">
+                {grid ? (
+                  <DatasetSurface3D
+                    entries={entries}
+                    grid={grid}
+                    primaryVariables={primaryVariables}
+                    dataset={dataset!}
+                    perExampleLoss={activePerExampleLoss!}
+                    initialValues={datasetInitialValues}
+                  />
+                ) : (
+                  <MetricCharts entries={entries} primaryVariables={primaryVariables} />
+                )}
+              </div>
             </div>
-            <div className="dataset-view-pane">
-              {grid ? (
-                <DatasetSurface3D
-                  entries={entries}
-                  grid={grid}
-                  primaryVariables={primaryVariables}
-                  dataset={dataset!}
-                  perExampleLoss={activePerExampleLoss!}
-                  initialValues={datasetInitialValues}
-                />
-              ) : (
-                <MetricCharts entries={entries} primaryVariables={primaryVariables} />
-              )}
-            </div>
-          </div>
+            <StepInspector entries={entries} />
+          </>
         ) : (
           <p className="dataset-placeholder">Choose a sample or upload a CSV, then pick a model, to start training.</p>
         )}
       </div>
 
       <CollapsibleSecondaryPanel>
+        {ready ? <PredictPanel entries={entries} /> : null}
         {grid ? (
           <>
             <h2>Contour</h2>

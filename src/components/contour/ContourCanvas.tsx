@@ -19,6 +19,8 @@ interface Props {
   /** Runners paused when a marker drag begins (DESIGN.md §9). */
   runners: readonly Steppable[];
   onMarkerCommit: (point: Point) => void;
+  /** Called with the loss-space point under the pointer (null when it leaves) while no drag is in progress. */
+  onHover?: (point: Point | null) => void;
 }
 
 /**
@@ -28,7 +30,7 @@ interface Props {
  * release commits through `onMarkerCommit` — never touching any rule's
  * live trajectory (only its next Reset seeds from it).
  */
-export function ContourCanvas({ grid, bounds, trajectories, marker, runners, onMarkerCommit }: Props) {
+export function ContourCanvas({ grid, bounds, trajectories, marker, runners, onMarkerCommit, onHover }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const draggingRef = useRef(false);
   const [dragPreview, setDragPreview] = useState<Point | null>(null);
@@ -63,8 +65,11 @@ export function ContourCanvas({ grid, bounds, trajectories, marker, runners, onM
   };
 
   const handlePointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!draggingRef.current) return;
     const { px, py } = pointerPosition(e);
+    if (!draggingRef.current) {
+      onHover?.(transform.fromCanvas(px, py));
+      return;
+    }
     setDragPreview(transform.fromCanvas(px, py));
   };
 
@@ -86,6 +91,7 @@ export function ContourCanvas({ grid, bounds, trajectories, marker, runners, onM
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerLeave={() => onHover?.(null)}
       />
     </div>
   );

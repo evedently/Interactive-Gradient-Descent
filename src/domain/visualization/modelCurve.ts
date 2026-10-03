@@ -12,6 +12,20 @@ const PROBABILITY_AXIS: Pick<GridBounds, "yMin" | "yMax"> = { yMin: -0.1, yMax: 
 export type CurvePoint = { x: number; y: number };
 
 /**
+ * The model's prediction for input `x` alone, or `null` when there is no
+ * such function of x: the formula defines no `prediction`, or its
+ * prediction reads another column.
+ */
+export function predictFromX(perExampleLoss: CompiledPerExampleLoss, coords: Readonly<Record<string, number>>, x: number): number | null {
+  try {
+    return evaluatePrediction(perExampleLoss, coords, { [INPUT_NAME]: x });
+  } catch (err) {
+    if (err instanceof ExprError) return null;
+    throw err;
+  }
+}
+
+/**
  * The model's prediction as a function of x, sampled at `count` evenly
  * spaced inputs — how the data plot draws ANY model (line, sigmoid, or a
  * custom curve) without special-casing it. Non-finite samples are dropped.
@@ -28,13 +42,7 @@ export function sampleModelCurve(
   const points: CurvePoint[] = [];
   for (let i = 0; i < count; i++) {
     const x = count === 1 ? xMin : xMin + ((xMax - xMin) * i) / (count - 1);
-    let y: number | null;
-    try {
-      y = evaluatePrediction(perExampleLoss, coords, { [INPUT_NAME]: x });
-    } catch (err) {
-      if (err instanceof ExprError) return null; // prediction reads another column — not a function of x alone
-      throw err;
-    }
+    const y = predictFromX(perExampleLoss, coords, x);
     if (y === null) return null;
     if (Number.isFinite(y)) points.push({ x, y });
   }

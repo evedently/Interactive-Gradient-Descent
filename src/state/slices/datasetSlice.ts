@@ -121,6 +121,7 @@ export const createDatasetSlice: StateCreator<WorkspaceState, [], [], DatasetSli
 
   focusedRuleId: null,
   parameterHover: null,
+  predictInput: null,
 
   datasetInitialValues: Object.fromEntries(modelParameterNames(DEFAULT_MODEL_KIND, DEFAULT_DATASET_PRIMARY_VARIABLE_NAMES).map((n) => [n, 0])),
   batchSize: DEFAULT_BATCH_SIZE,
@@ -192,4 +193,6 @@ export const createDatasetSlice: StateCreator<WorkspaceState, [], [], DatasetSli
   setFocusedRuleId: (id) => set({ focusedRuleId: id }),
 
   setParameterHover: (coords) => set({ parameterHover: coords }),
+
+  setPredictInput: (x) => set({ predictInput: x }),
 });

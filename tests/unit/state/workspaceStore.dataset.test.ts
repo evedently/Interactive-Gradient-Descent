@@ -190,7 +190,8 @@ describe("workspaceStore: dataset mode", () => {
   it("setFocusedRuleIdAndParameterHover_storeViewState", () => {
     store().setFocusedRuleId("abc");
     store().setParameterHover({ w: 1, b: 2 });
-    expect(store()).toMatchObject({ focusedRuleId: "abc", parameterHover: { w: 1, b: 2 } });
+    store().setPredictInput(3.5);
+    expect(store()).toMatchObject({ focusedRuleId: "abc", parameterHover: { w: 1, b: 2 }, predictInput: 3.5 });
   });
 
   it("setBatchSize clamps to a minimum of 1", () => {

@@ -28,6 +28,7 @@ export function DatasetContourPlot2D({ entries, grid, primaryVariables, initialV
   useRunnersVersion(entries.map((e) => e.runner));
   const [aName, bName] = primaryVariables.map((v) => v.name);
   const setDatasetInitialValues = useWorkspaceStore((s) => s.setDatasetInitialValues);
+  const setParameterHover = useWorkspaceStore((s) => s.setParameterHover);
 
   const gridView: LossGridView = useMemo(() => {
     const { min, max } = finiteRange(grid.values);
@@ -51,6 +52,7 @@ export function DatasetContourPlot2D({ entries, grid, primaryVariables, initialV
       marker={{ x: initialValues[aName] ?? 0, y: initialValues[bName] ?? 0 }}
       runners={entries.map((e) => e.runner)}
       onMarkerCommit={(point) => setDatasetInitialValues({ [aName]: point.x, [bName]: point.y })}
+      onHover={(point) => setParameterHover(point ? { [aName]: point.x, [bName]: point.y } : null)}
     />
   );
 }
