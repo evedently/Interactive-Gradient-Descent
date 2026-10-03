@@ -18,7 +18,7 @@ export interface Steppable extends Subscribable {
   status: RunnerStatus;
   play(): void;
   pause(): void;
-  // Deliberately not `StepResult` here — `ControlsBar` never reads the
+  // Deliberately not `RuleStepResult` here — `ControlsBar` never reads the
   // returned point, and each runner's own `step()` return type (which
   // does carry a mode-specific point) is still assignable to this wider
   // shape via ordinary structural covariance.

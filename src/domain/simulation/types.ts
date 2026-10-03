@@ -54,9 +54,3 @@ export const DEFAULT_SIM_LIMITS: SimLimits = {
 export type PendingUpdateResult =
   | { ok: true; dx: number; dy: number; newX: number; newY: number; pendingState: Record<string, number> }
   | { ok: false; message: string };
-
-export interface StepResult {
-  errored: boolean;
-  message?: string;
-  point?: TrajectoryPoint;
-}
