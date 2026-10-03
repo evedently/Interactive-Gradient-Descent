@@ -6,6 +6,7 @@ import { RulePanelHeader } from "./RulePanelHeader";
 import type { DatasetSimulationRunner } from "../domain/simulation/DatasetSimulationRunner";
 import { useRunnerVersion } from "../hooks/useRunnerVersion";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
+import { useWorkspaceStore } from "../state/workspaceStore";
 
 interface Props {
   rule: RuleWorkspaceEntry;
@@ -21,6 +22,7 @@ interface Props {
  */
 export function DatasetRulePanel({ rule, runner, canRemove }: Props) {
   useRunnerVersion(runner);
+  const setFocusedRuleId = useWorkspaceStore((s) => s.setFocusedRuleId);
   const current = runner.current;
   const editingBlocked = rule.errors.length > 0;
 
@@ -48,7 +50,8 @@ export function DatasetRulePanel({ rule, runner, canRemove }: Props) {
               </span>
             ))}
           </div>
-          <ControlsBar runner={runner} disabled={editingBlocked} />
+          {/* Driving a rule by hand makes it the one the data plot's batch highlight and the step inspector follow. */}
+          <ControlsBar runner={runner} disabled={editingBlocked} onInteract={() => setFocusedRuleId(rule.id)} />
           {editingBlocked ? <p className="error-message">Fix the syntax errors above before running this rule.</p> : null}
           {runner.status === "error" ? <p className="error-message">{runner.lastError}</p> : null}
         </>
