@@ -15,9 +15,10 @@
  */
 
 import type { SimLimits } from "../simulation/types";
+import type { GridBounds } from "../visualization/grid";
 
-/** Bumped to 3 when `simLimits.rapidIncreaseWarningFactor` was removed (the non-fatal warning it configured was removed) in favor of `earlyStopLossThreshold`, and `stepsPerSecond` was added — an older file is rejected outright (§17's "unsupported schemaVersion" row) rather than silently defaulted, keeping exactly one shape per version. */
-export const WORKSPACE_SCHEMA_VERSION = 3;
+/** Bumped to 4 when `surfaceBounds` (DESIGN.md §8's presenter-configurable view bounds) was added — an older file is rejected outright (§17's "unsupported schemaVersion" row) rather than silently defaulted, keeping exactly one shape per version. */
+export const WORKSPACE_SCHEMA_VERSION = 4;
 
 export interface RuleSnapshot {
   name: string;
@@ -54,6 +55,7 @@ export interface WorkspaceSnapshot {
   datasetRunTargetValue: number;
   simLimits: SimLimits;
   stepsPerSecond: number;
+  surfaceBounds: GridBounds;
 }
 
 export interface SnapshotValidationResult {
@@ -153,6 +155,25 @@ function validateSimLimits(value: unknown, errors: string[]): SimLimits | null {
   };
 }
 
+/** Rejects a degenerate or inverted range (`xMin >= xMax`) in addition to the usual finite-number checks — a saved view must still be a valid window to render. */
+function validateGridBounds(value: unknown, field: string, errors: string[]): GridBounds | null {
+  if (
+    !isRecord(value) ||
+    !isFiniteNumber(value.xMin) ||
+    !isFiniteNumber(value.xMax) ||
+    !isFiniteNumber(value.yMin) ||
+    !isFiniteNumber(value.yMax)
+  ) {
+    errors.push(`${field} must be { xMin, xMax, yMin, yMax: number }`);
+    return null;
+  }
+  if (value.xMin >= value.xMax || value.yMin >= value.yMax) {
+    errors.push(`${field} must have xMin < xMax and yMin < yMax`);
+    return null;
+  }
+  return { xMin: value.xMin, xMax: value.xMax, yMin: value.yMin, yMax: value.yMax };
+}
+
 /** Structural validation only (see module doc) — rejects the whole snapshot on any error rather than partially salvaging a malformed file. */
 export function validateWorkspaceSnapshot(value: unknown): SnapshotValidationResult {
   const errors: string[] = [];
@@ -199,6 +220,7 @@ export function validateWorkspaceSnapshot(value: unknown): SnapshotValidationRes
 
   const simLimits = validateSimLimits(value.simLimits, errors);
   if (!isFiniteNumber(value.stepsPerSecond) || (value.stepsPerSecond as number) <= 0) errors.push("stepsPerSecond must be a positive finite number");
+  const surfaceBounds = validateGridBounds(value.surfaceBounds, "surfaceBounds", errors);
 
   if (errors.length > 0) return { snapshot: null, errors };
 
@@ -225,6 +247,7 @@ export function validateWorkspaceSnapshot(value: unknown): SnapshotValidationRes
       datasetRunTargetValue: value.datasetRunTargetValue as number,
       simLimits: simLimits!,
       stepsPerSecond: value.stepsPerSecond as number,
+      surfaceBounds: surfaceBounds!,
     },
     errors: [],
   };

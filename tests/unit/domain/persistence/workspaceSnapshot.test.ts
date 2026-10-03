@@ -24,6 +24,7 @@ function validSnapshot(): Record<string, unknown> {
     datasetRunTargetValue: 10,
     simLimits: { maxIterations: 200_000, maxAbsPrimaryVariableValue: 1_000_000, maxAbsLoss: 1_000_000_000_000, earlyStopLossThreshold: undefined },
     stepsPerSecond: 4,
+    surfaceBounds: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
   };
 }
 
@@ -136,6 +137,30 @@ describe("validateWorkspaceSnapshot", () => {
     const { snapshot, errors } = validateWorkspaceSnapshot(value);
     expect(snapshot).toBeNull();
     expect(errors.some((e) => /stepsPerSecond/.test(e))).toBe(true);
+  });
+
+  it("accepts a much smaller or larger surfaceBounds window", () => {
+    const value = validSnapshot();
+    value.surfaceBounds = { xMin: -0.001, xMax: 0.001, yMin: -0.001, yMax: 0.001 };
+    const { snapshot, errors } = validateWorkspaceSnapshot(value);
+    expect(errors).toEqual([]);
+    expect(snapshot?.surfaceBounds).toEqual({ xMin: -0.001, xMax: 0.001, yMin: -0.001, yMax: 0.001 });
+  });
+
+  it("rejects an inverted surfaceBounds range", () => {
+    const value = validSnapshot();
+    value.surfaceBounds = { xMin: 10, xMax: -10, yMin: -10, yMax: 10 };
+    const { snapshot, errors } = validateWorkspaceSnapshot(value);
+    expect(snapshot).toBeNull();
+    expect(errors.some((e) => /surfaceBounds/.test(e))).toBe(true);
+  });
+
+  it("rejects a malformed surfaceBounds", () => {
+    const value = validSnapshot();
+    value.surfaceBounds = { xMin: -10, xMax: 10 };
+    const { snapshot, errors } = validateWorkspaceSnapshot(value);
+    expect(snapshot).toBeNull();
+    expect(errors.some((e) => /surfaceBounds/.test(e))).toBe(true);
   });
 
   it("collects every structural error at once rather than stopping at the first", () => {

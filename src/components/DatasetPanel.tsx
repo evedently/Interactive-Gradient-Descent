@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { offsetToLineColumn } from "../domain/rules/ruleTypes";
 import type { DatasetRunTargetKind } from "../state/workspaceStore";
 import { useWorkspaceStore } from "../state/workspaceStore";
+import { CollapsiblePanel } from "./CollapsiblePanel";
 
 const MAX_BATCH_SIZE = 10_000;
 
@@ -46,8 +47,7 @@ export function DatasetPanel() {
   };
 
   return (
-    <section className="panel">
-      <h2>Dataset</h2>
+    <CollapsiblePanel title="Dataset">
 
       <label className="field-label" htmlFor="dataset-csv-input">
         CSV file
@@ -171,6 +171,6 @@ export function DatasetPanel() {
           />
         ) : null}
       </div>
-    </section>
+    </CollapsiblePanel>
   );
 }

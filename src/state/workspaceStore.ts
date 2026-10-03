@@ -15,6 +15,8 @@ import { compileRule, SURFACE_PRIMARY_VARIABLES, type CompiledRule, type Primary
 import { parseRuleSource } from "../domain/rules/ruleParser";
 import type { RuleError } from "../domain/rules/ruleTypes";
 import { DEFAULT_SIM_LIMITS, type SimLimits } from "../domain/simulation/types";
+import type { GridBounds } from "../domain/visualization/grid";
+import { DEFAULT_SURFACE_BOUNDS } from "../domain/visualization/surfaceGeometry";
 
 export type CameraMode = "rotate" | "pan";
 export type WorkspaceMode = "surface" | "dataset";
@@ -133,6 +135,16 @@ interface WorkspaceState {
   cameraMode: CameraMode;
   /** Purely a view preference (collapses the contour/comparison panel into a slim right-edge tab) — not part of a saved workspace snapshot, same as scroll position wouldn't be. */
   secondaryPanelCollapsed: boolean;
+  /**
+   * Surface mode's 3D/contour view bounds (DESIGN.md §8) — presenter-
+   * configurable so a loss function whose interesting landscape sits well
+   * inside or well outside the default ±10 window is still visible.
+   * Purely a rendering-domain setting: changing it never stops or resets
+   * any simulation (§9's "change visualization bounds ... does not stop or
+   * reset"). Dataset mode has its own independent auto-fit bounds (§7) and
+   * is unaffected by this field.
+   */
+  surfaceBounds: GridBounds;
 
   /** Shared by every rule (DESIGN.md §1/§10); each rule derives its own stream from this via `deriveSeed`. Default 42 per spec §8. */
   seed: number;
@@ -179,9 +191,12 @@ interface WorkspaceState {
   setRuleColor: (id: string, color: string) => void;
   setRuleVisible: (id: string, visible: boolean) => void;
   setRuleCollapsed: (id: string, collapsed: boolean) => void;
+  /** Moves rule `id` to position `toIndex` (clamped) in the rule list — the drag-to-reorder handle in each rule panel's header. Unknown ids are ignored. */
+  moveRule: (id: string, toIndex: number) => void;
   setStartPoint: (point: { x: number; y: number }) => void;
   setCameraMode: (mode: CameraMode) => void;
   setSecondaryPanelCollapsed: (collapsed: boolean) => void;
+  setSurfaceBounds: (bounds: GridBounds) => void;
   setSeed: (seed: number) => void;
   setNoiseLevel: (level: number) => void;
   /** Merges a partial update into `simLimits` (e.g. one changed numeric field at a time from `RunControlsPanel`) rather than requiring every caller to spread the whole object. */
@@ -272,6 +287,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   startPoint: { x: 0, y: 0 },
   cameraMode: "rotate",
   secondaryPanelCollapsed: false,
+  surfaceBounds: DEFAULT_SURFACE_BOUNDS,
   seed: DEFAULT_SEED,
   noiseLevel: 0,
   simLimits: DEFAULT_SIM_LIMITS,
@@ -371,9 +387,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setRuleCollapsed: (id, collapsed) =>
     set((state) => ({ rules: state.rules.map((r) => (r.id === id ? { ...r, collapsed } : r)) })),
 
+  moveRule: (id, toIndex) =>
+    set((state) => {
+      const fromIndex = state.rules.findIndex((r) => r.id === id);
+      if (fromIndex === -1) return {};
+      const rules = [...state.rules];
+      const [moved] = rules.splice(fromIndex, 1);
+      rules.splice(Math.max(0, Math.min(toIndex, rules.length)), 0, moved);
+      return { rules };
+    }),
+
   setStartPoint: (point) => set({ startPoint: point }),
   setCameraMode: (mode) => set({ cameraMode: mode }),
   setSecondaryPanelCollapsed: (collapsed) => set({ secondaryPanelCollapsed: collapsed }),
+  setSurfaceBounds: (bounds) => set({ surfaceBounds: bounds }),
   setSeed: (seed) => set({ seed }),
   setNoiseLevel: (level) => set({ noiseLevel: level }),
   setSimLimits: (partial) => set((state) => ({ simLimits: { ...state.simLimits, ...partial } })),
@@ -494,6 +521,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       datasetRunTargetValue: state.datasetRunTargetValue,
       simLimits: state.simLimits,
       stepsPerSecond: state.stepsPerSecond,
+      surfaceBounds: state.surfaceBounds,
     };
   },
 
@@ -580,6 +608,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       datasetRunTargetValue: snapshot.datasetRunTargetValue,
       simLimits: snapshot.simLimits,
       stepsPerSecond: snapshot.stepsPerSecond,
+      surfaceBounds: snapshot.surfaceBounds,
     });
 
     return { errors: [] };

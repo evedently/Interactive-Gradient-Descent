@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { SimulationRunner } from "../domain/simulation/SimulationRunner";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
 import { useRunnersVersion } from "../hooks/useRunnersVersion";
@@ -11,17 +12,30 @@ interface Props {
  * Live simulation status, upper-right (spec §7): one compact row per
  * visible rule (iteration, loss, run state), plus any error/warning
  * messages. With multiple rules there is no single "current" reading —
- * see `ComparisonTable` for the fuller side-by-side breakdown.
+ * see `ComparisonTable` for the fuller side-by-side breakdown. Can be
+ * collapsed to just its header so it stops covering the 3D view.
  */
 export function StatusHUD({ rules, runners }: Props) {
   const visibleRules = rules.filter((r) => r.visible);
   const runnerList = visibleRules.map((r) => runners.get(r.id)).filter((r): r is SimulationRunner => r !== undefined);
   useRunnersVersion(runnerList);
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className="status-hud">
-      <h2>Status</h2>
-      {visibleRules.map((rule) => {
+    <aside className={`status-hud ${collapsed ? "status-hud-collapsed" : ""}`}>
+      <div className="status-hud-header">
+        <h2>Status</h2>
+        <button
+          type="button"
+          className="status-hud-toggle"
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed(!collapsed)}
+          title={collapsed ? "Show status" : "Hide status"}
+        >
+          {collapsed ? "◂" : "▸"}
+        </button>
+      </div>
+      {collapsed ? null : visibleRules.map((rule) => {
         const runner = runners.get(rule.id);
         if (!runner) return null;
         const point = runner.current;

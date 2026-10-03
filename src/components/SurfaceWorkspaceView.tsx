@@ -4,12 +4,16 @@ import { ComparisonTable } from "./ComparisonTable";
 import { ContourPlot2D } from "./ContourPlot2D";
 import { LossFunctionEditor } from "./LossFunctionEditor";
 import { RulePanel } from "./RulePanel";
+import { ReorderableRuleList } from "./ReorderableRuleList";
 import { RunControlsPanel } from "./RunControlsPanel";
+import { SettingsGroup } from "./SettingsGroup";
 import { SimulationSettingsPanel } from "./SimulationSettingsPanel";
 import { StatusHUD } from "./StatusHUD";
 import { Surface3D, type RuleRunnerEntry } from "./Surface3D";
+import { ViewBoundsPanel } from "./ViewBoundsPanel";
 import { buildSurfaceExperimentCsv } from "../domain/persistence/experimentCsv";
 import { deriveSeed } from "../domain/simulation/SeededRng";
+import { pauseHiddenRunners, playVisibleRunners } from "../domain/simulation/ruleRunControl";
 import { useContinuousRunAll } from "../hooks/useContinuousRunAll";
 import { useMultiRunners } from "../hooks/useMultiRunners";
 import { downloadTextFile } from "../lib/downloadFile";
@@ -63,9 +67,10 @@ export function SurfaceWorkspaceView() {
     for (const { runner } of entries) runner.reset();
   };
 
-  const runAll = () => {
-    for (const { runner } of entries) runner.play();
-  };
+  // Hidden rules never run: "Run all" skips them, and hiding a running rule pauses it.
+  useEffect(() => pauseHiddenRunners(entries), [entries]);
+
+  const runAll = () => playVisibleRunners(entries);
 
   const exportCsv = () => {
     downloadTextFile("gradient-descent-experiment.csv", buildSurfaceExperimentCsv(rules, runners), "text/csv");
@@ -74,9 +79,12 @@ export function SurfaceWorkspaceView() {
   return (
     <>
       <div className="left-panel">
-        <LossFunctionEditor />
-        <SimulationSettingsPanel />
-        <RunControlsPanel />
+        <SettingsGroup>
+          <LossFunctionEditor />
+          <SimulationSettingsPanel />
+          <ViewBoundsPanel />
+          <RunControlsPanel />
+        </SettingsGroup>
 
         <div className="rule-list-toolbar">
           <button onClick={addRule}>+ Add rule</button>
@@ -85,9 +93,10 @@ export function SurfaceWorkspaceView() {
           <button onClick={exportCsv}>Export CSV</button>
         </div>
 
-        {entries.map(({ rule, runner }) => (
-          <RulePanel key={rule.id} rule={rule} runner={runner} canRemove={rules.length > 1} />
-        ))}
+        <ReorderableRuleList
+          entries={entries}
+          renderEntry={({ rule, runner }) => <RulePanel rule={rule} runner={runner} canRemove={rules.length > 1} />}
+        />
       </div>
 
       <div className="center-view">
