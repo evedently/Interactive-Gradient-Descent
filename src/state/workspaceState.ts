@@ -1,3 +1,4 @@
+import type { ModelKind } from "../domain/dataset/modelTemplates";
 import type { CompiledPerExampleLoss, Dataset } from "../domain/dataset/types";
 import type { ExprNode } from "../domain/expr/ast";
 import type { LossFunctionError, LossFunctionParseResult, ResolvedLoss } from "../domain/lossFunction";
@@ -14,6 +15,13 @@ import type { RuleWorkspaceEntry } from "./ruleEntries";
  */
 
 export type CameraMode = "rotate" | "pan";
+
+/** A suggested model and column choice to apply along with a dataset (e.g. a built-in sample's). */
+export interface DatasetPreset {
+  modelKind: ModelKind;
+  inputColumn: string;
+  targetColumn: string;
+}
 export type WorkspaceMode = "surface" | "dataset";
 export type DatasetRunTargetKind = "continuous" | "epochs" | "seconds";
 
@@ -99,20 +107,40 @@ export interface SettingsSlice {
 export interface DatasetSlice {
   /** Surface (the permanent default, §7) vs. dataset (Phase 7, §18). Switching modes regenerates every rule's text against the new primary variables (see `defaultRuleSourceFor`). */
   mode: WorkspaceMode;
-  /** `[x, y]` in surface mode (fixed); the presenter's named model parameters in dataset mode (DESIGN.md §4). Every rule is compiled against this list. */
+  /** `[x, y]` in surface mode (fixed); the model's two parameters in dataset mode (`w`, `b` for templates, the presenter's names for custom). Every rule is compiled against this list. */
   primaryVariables: readonly PrimaryVariable[];
-  /** Only meaningful in dataset mode; preserved across a switch back to surface mode so re-entering dataset mode doesn't lose the presenter's naming. */
+  /** The custom model's parameter names; preserved while a template is selected so switching back to Custom doesn't lose them. */
   datasetPrimaryVariableNames: [string, string];
 
+  /** Which model trains: a template (linear/logistic) or the custom formula. */
+  modelKind: ModelKind;
+  /** The CSV columns that become `x` (input) and `y` (target) in the model formula. */
+  inputColumn: string | null;
+  targetColumn: string | null;
+
+  /** The CSV exactly as loaded (all its columns) — what the column pickers choose from and what a saved workspace embeds. */
+  sourceDataset: Dataset | null;
+  /** The column-mapped dataset training actually uses (`x`, `y`, plus extra columns for custom formulas). */
   dataset: Dataset | null;
   datasetFileName: string | null;
   datasetError: string | null;
   datasetWarning: string | null;
+  /** Why the loaded data can't train the chosen model (e.g. a non-0/1 target for logistic regression). */
+  modelDataError: string | null;
 
+  /** The custom formula's text (templates' text is fixed and lives in `MODEL_TEMPLATES`). */
   perExampleLossSourceText: string;
+  /** Compile errors for whichever formula is active. */
   perExampleLossErrors: RuleError[];
   /** Last successfully compiled per-example loss — same "don't kill it on a typo" rule as `activeLoss` (DESIGN.md §9). */
   activePerExampleLoss: CompiledPerExampleLoss | null;
+  /** Whether the active formula defines `prediction`, i.e. whether the model can be drawn and used for predictions. */
+  modelDefinesPrediction: boolean;
+
+  /** View-only (never saved): the rule the batch highlight and step inspector follow. `null` means the first visible rule. */
+  focusedRuleId: string | null;
+  /** View-only (never saved): parameters under the pointer on the contour, drawn as a ghost model in the data plot. */
+  parameterHover: Record<string, number> | null;
 
   /** Numeric-only initial values for the primary variables in dataset mode — there is no draggable start point (§7). */
   datasetInitialValues: Record<string, number>;
@@ -125,7 +153,15 @@ export interface DatasetSlice {
   setMode: (mode: WorkspaceMode) => void;
   setDatasetPrimaryVariableNames: (names: [string, string]) => void;
   loadDatasetFromFile: (file: File) => Promise<void>;
+  /** Loads CSV text as if it were an uploaded file, with an optional column/model choice (used by the built-in samples). */
+  loadDatasetFromText: (text: string, fileName: string, preset?: DatasetPreset) => void;
+  setModelKind: (kind: ModelKind) => void;
+  setColumnMapping: (inputColumn: string, targetColumn: string) => void;
+  /** Switches to Custom with the current template's formula (and `w`/`b`) as the starting text. */
+  customizeTemplate: () => void;
   setPerExampleLossSourceText: (text: string) => void;
+  setFocusedRuleId: (id: string | null) => void;
+  setParameterHover: (coords: Record<string, number> | null) => void;
   setDatasetInitialValue: (name: string, value: number) => void;
   /** Sets several initial values at once (e.g. both primary variables from a single drag gesture on the loss surface/contour) as one store update instead of one per name. */
   setDatasetInitialValues: (values: Readonly<Record<string, number>>) => void;

@@ -25,4 +25,6 @@ export interface DatasetSample {
   epoch: number;
   batchIndex: number;
   examplesProcessed: number;
+  /** Which dataset rows (indices into `Dataset.rows`) this mini-batch drew — what the data plot highlights and the step inspector breaks down. */
+  batchRowIndices: number[];
 }

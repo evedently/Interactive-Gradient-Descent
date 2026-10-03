@@ -10,6 +10,8 @@ export interface DatasetTrajectoryPoint {
   epoch: number;
   batchIndex: number;
   examplesProcessed: number;
+  /** The mini-batch this point's `batchGradient` was computed from — i.e. the rows the *next* step will learn from. */
+  batchRowIndices: number[];
 }
 
 /** Stops a continuous run automatically once the target is reached (DESIGN.md §18 Phase 7's "epochs/seconds run modes"). `null` runs indefinitely, like surface mode. */

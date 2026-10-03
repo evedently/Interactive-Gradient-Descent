@@ -63,7 +63,8 @@ describe("workspaceStore: save/load (DESIGN.md §16/§18 Phase 8)", () => {
     store.setMode("dataset");
     return store.loadDatasetFromFile(makeCsvFile(VALID_CSV)).then(() => {
       const s = useWorkspaceStore.getState();
-      s.setDatasetPrimaryVariableNames(["weight", "bias"]);
+      s.setModelKind("custom");
+      useWorkspaceStore.getState().setDatasetPrimaryVariableNames(["weight", "bias"]);
       useWorkspaceStore.getState().setPerExampleLossSourceText("prediction = weight * feature + bias\nerror = prediction - target\nloss = error^2");
       useWorkspaceStore.getState().setDatasetInitialValues({ weight: 1, bias: -1 });
       useWorkspaceStore.getState().setBatchSize(3);
@@ -80,6 +81,8 @@ describe("workspaceStore: save/load (DESIGN.md §16/§18 Phase 8)", () => {
       const after = useWorkspaceStore.getState();
       expect(after.mode).toBe("dataset");
       expect(after.datasetPrimaryVariableNames).toEqual(["weight", "bias"]);
+      expect(after.modelKind).toBe("custom");
+      expect(after.sourceDataset).toEqual(before.sourceDataset);
       expect(after.dataset).toEqual(before.dataset);
       expect(after.perExampleLossSourceText).toBe(before.perExampleLossSourceText);
       expect(after.activePerExampleLoss).not.toBeNull();
@@ -90,6 +93,46 @@ describe("workspaceStore: save/load (DESIGN.md §16/§18 Phase 8)", () => {
       expect(after.datasetRunTargetValue).toBe(5);
       for (const rule of after.rules) expect(rule.sourceText).toContain("weight_next");
     });
+  });
+
+  it("loadWorkspaceSnapshot_logisticModel_restoresModelAndColumns", () => {
+    const store = useWorkspaceStore.getState();
+    store.setMode("dataset");
+    store.loadDatasetFromText("hours,passed\n1,0\n2,0\n4,1\n5,1\n", "pass.csv", { modelKind: "logistic", inputColumn: "hours", targetColumn: "passed" });
+    const before = useWorkspaceStore.getState();
+    expect(before.activePerExampleLoss).not.toBeNull();
+    const snapshot = before.exportSnapshot();
+
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    expect(useWorkspaceStore.getState().loadWorkspaceSnapshot(snapshot).errors).toEqual([]);
+
+    const after = useWorkspaceStore.getState();
+    expect(after).toMatchObject({ modelKind: "logistic", inputColumn: "hours", targetColumn: "passed", modelDataError: null });
+    expect(after.sourceDataset?.columns).toEqual(["hours", "passed"]);
+    expect(after.activePerExampleLoss).not.toBeNull();
+    expect(after.primaryVariables.map((v) => v.name)).toEqual(["w", "b"]);
+  });
+
+  it("loadWorkspaceSnapshot_v4DatasetFile_loadsAsCustomAndStillCompiles", () => {
+    const snapshot = useWorkspaceStore.getState().exportSnapshot() as unknown as Record<string, unknown>;
+    const legacy: Record<string, unknown> = {
+      ...snapshot,
+      schemaVersion: 4,
+      mode: "dataset",
+      dataset: { columns: ["feature", "target"], rows: [{ feature: 1, target: 2 }, { feature: 2, target: 4 }] },
+      perExampleLossSourceText: "prediction = theta_0 * feature + theta_1\nerror = prediction - target\nloss = error^2",
+      datasetPrimaryVariableNames: ["theta_0", "theta_1"],
+    };
+    delete legacy.modelKind;
+    delete legacy.inputColumn;
+    delete legacy.targetColumn;
+
+    expect(useWorkspaceStore.getState().loadWorkspaceSnapshot(legacy).errors).toEqual([]);
+    const after = useWorkspaceStore.getState();
+    expect(after.modelKind).toBe("custom");
+    expect(after.perExampleLossErrors).toEqual([]);
+    expect(after.activePerExampleLoss).not.toBeNull();
+    expect(after.primaryVariables.map((v) => v.name)).toEqual(["theta_0", "theta_1"]);
   });
 
   it("rejects a structurally invalid snapshot and leaves the current workspace untouched", () => {

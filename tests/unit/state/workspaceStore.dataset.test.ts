@@ -6,157 +6,195 @@ function makeCsvFile(text: string, name = "data.csv"): File {
 }
 
 const VALID_CSV = "feature,target\n1,2\n2,4\n3,6\n";
+const BINARY_CSV = "hours,score,passed\n1,40,0\n2,55,0\n4,70,1\n6,90,1\n";
 
-describe("workspaceStore: dataset mode (DESIGN.md §18 Phase 7)", () => {
+const store = () => useWorkspaceStore.getState();
+const names = () => store().primaryVariables.map((v) => v.name);
+
+describe("workspaceStore: dataset mode", () => {
   beforeEach(() => {
     useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   });
 
   it("defaults to surface mode with the fixed x/y primary variables", () => {
-    const state = useWorkspaceStore.getState();
-    expect(state.mode).toBe("surface");
-    expect(state.primaryVariables.map((v) => v.name)).toEqual(["x", "y"]);
+    expect(store().mode).toBe("surface");
+    expect(names()).toEqual(["x", "y"]);
   });
 
-  it("switching to dataset mode adopts the presenter's (or default) primary-variable names and regenerates every rule so it still compiles", () => {
-    useWorkspaceStore.getState().setMode("dataset");
-    const state = useWorkspaceStore.getState();
-    expect(state.primaryVariables.map((v) => v.name)).toEqual(DEFAULT_DATASET_PRIMARY_VARIABLE_NAMES);
-    for (const rule of state.rules) {
+  it("setMode_dataset_adoptsLinearTemplateParametersAndRegeneratesRules", () => {
+    store().setMode("dataset");
+    expect(store().modelKind).toBe("linear");
+    expect(names()).toEqual(["w", "b"]);
+    expect(store().datasetInitialValues).toEqual({ w: 0, b: 0 });
+    for (const rule of store().rules) {
       expect(rule.errors).toEqual([]);
-      expect(rule.sourceText).toContain(`${DEFAULT_DATASET_PRIMARY_VARIABLE_NAMES[0]}_next`);
+      expect(rule.sourceText).toContain("w_next");
     }
   });
 
-  it("switching back to surface mode restores x/y and regenerates rules against them", () => {
-    useWorkspaceStore.getState().setMode("dataset");
-    useWorkspaceStore.getState().setMode("surface");
-    const state = useWorkspaceStore.getState();
-    expect(state.primaryVariables.map((v) => v.name)).toEqual(["x", "y"]);
-    for (const rule of state.rules) {
-      expect(rule.errors).toEqual([]);
-      expect(rule.sourceText).toContain("x_next");
-    }
+  it("setMode_backToSurface_restoresXAndYRules", () => {
+    store().setMode("dataset");
+    store().setMode("surface");
+    expect(names()).toEqual(["x", "y"]);
+    for (const rule of store().rules) expect(rule.sourceText).toContain("x_next");
   });
 
-  it("renaming dataset primary variables while in dataset mode regenerates rules under the new names", () => {
-    useWorkspaceStore.getState().setMode("dataset");
-    useWorkspaceStore.getState().setDatasetPrimaryVariableNames(["weight", "bias"]);
-    const state = useWorkspaceStore.getState();
-    expect(state.primaryVariables.map((v) => v.name)).toEqual(["weight", "bias"]);
-    expect(state.datasetInitialValues).toEqual({ weight: 0, bias: 0 });
-    for (const rule of state.rules) {
-      expect(rule.errors).toEqual([]);
-      expect(rule.sourceText).toContain("weight_next");
-    }
+  describe("loading data", () => {
+    beforeEach(() => store().setMode("dataset"));
+
+    it("loadDatasetFromFile_validCsv_mapsFirstAndLastColumnsAndCompilesLinear", async () => {
+      await store().loadDatasetFromFile(makeCsvFile(VALID_CSV));
+      const state = store();
+      expect(state.datasetError).toBeNull();
+      expect(state.sourceDataset?.columns).toEqual(["feature", "target"]);
+      expect(state).toMatchObject({ inputColumn: "feature", targetColumn: "target" });
+      expect(state.dataset?.columns).toEqual(["x", "y"]);
+      expect(state.dataset?.rows[0]).toEqual({ x: 1, y: 2 });
+      expect(state.activePerExampleLoss).not.toBeNull();
+      expect(state.modelDefinesPrediction).toBe(true);
+    });
+
+    it("loadDatasetFromFile_invalidCsv_setsErrorAndKeepsPreviousDataset", async () => {
+      await store().loadDatasetFromFile(makeCsvFile(VALID_CSV));
+      await store().loadDatasetFromFile(makeCsvFile("feature,target\nabc,4\n", "bad.csv"));
+      expect(store().datasetError).toMatch(/Row 1, column 'feature'/);
+      expect(store().sourceDataset?.columns).toEqual(["feature", "target"]);
+      expect(store().activePerExampleLoss).not.toBeNull();
+    });
+
+    it("loadDatasetFromFile_differentColumns_remapsToNewColumns", async () => {
+      await store().loadDatasetFromFile(makeCsvFile(VALID_CSV));
+      await store().loadDatasetFromFile(makeCsvFile("x1,y1\n1,2\n2,4\n", "different-columns.csv"));
+      expect(store()).toMatchObject({ inputColumn: "x1", targetColumn: "y1" });
+      expect(store().activePerExampleLoss).not.toBeNull();
+    });
+
+    it("loadDatasetFromFile_previousColumnsStillPresent_keepsColumnChoice", async () => {
+      await store().loadDatasetFromFile(makeCsvFile(BINARY_CSV));
+      store().setColumnMapping("hours", "score");
+      await store().loadDatasetFromFile(makeCsvFile(BINARY_CSV, "again.csv"));
+      expect(store()).toMatchObject({ inputColumn: "hours", targetColumn: "score" });
+    });
+
+    it("loadDatasetFromText_withPreset_appliesModelAndColumns", () => {
+      store().loadDatasetFromText(BINARY_CSV, "pass.csv", { modelKind: "logistic", inputColumn: "hours", targetColumn: "passed" });
+      expect(store()).toMatchObject({ modelKind: "logistic", inputColumn: "hours", targetColumn: "passed", datasetFileName: "pass.csv" });
+      expect(store().modelDataError).toBeNull();
+      expect(store().activePerExampleLoss).not.toBeNull();
+    });
   });
 
-  it("renaming dataset primary variables while still in surface mode does not touch the live rules", () => {
-    const before = useWorkspaceStore.getState().rules;
-    useWorkspaceStore.getState().setDatasetPrimaryVariableNames(["weight", "bias"]);
-    const state = useWorkspaceStore.getState();
-    expect(state.rules).toBe(before);
-    expect(state.primaryVariables.map((v) => v.name)).toEqual(["x", "y"]);
+  describe("model choice", () => {
+    beforeEach(async () => {
+      store().setMode("dataset");
+      await store().loadDatasetFromFile(makeCsvFile(BINARY_CSV));
+    });
+
+    it("setModelKind_logisticWithNonBinaryTarget_reportsDataErrorAndDisablesTraining", () => {
+      store().setColumnMapping("hours", "score");
+      store().setModelKind("logistic");
+      expect(store().modelDataError).toMatch(/0 or 1/);
+      expect(store().activePerExampleLoss).toBeNull();
+    });
+
+    it("setColumnMapping_toBinaryTarget_fixesLogistic", () => {
+      store().setModelKind("logistic");
+      store().setColumnMapping("hours", "passed");
+      expect(store().modelDataError).toBeNull();
+      expect(store().activePerExampleLoss).not.toBeNull();
+    });
+
+    it("setModelKind_betweenTemplates_keepsRuleText", () => {
+      const before = store().rules;
+      store().setModelKind("logistic");
+      expect(store().rules).toBe(before);
+      expect(names()).toEqual(["w", "b"]);
+    });
+
+    it("setModelKind_custom_adoptsCustomParameterNamesAndRegeneratesRules", () => {
+      store().setModelKind("custom");
+      expect(names()).toEqual(DEFAULT_DATASET_PRIMARY_VARIABLE_NAMES);
+      expect(store().activePerExampleLoss).not.toBeNull();
+      for (const rule of store().rules) expect(rule.sourceText).toContain("theta_0_next");
+    });
+
+    it("customizeTemplate_copiesTemplateTextWithWAndB", () => {
+      store().setModelKind("logistic");
+      store().setColumnMapping("hours", "passed");
+      const rulesBefore = store().rules;
+      store().customizeTemplate();
+      expect(store().modelKind).toBe("custom");
+      expect(store().perExampleLossSourceText).toContain("prediction = 1 / (1 + exp(-z))");
+      expect(store().datasetPrimaryVariableNames).toEqual(["w", "b"]);
+      expect(store().activePerExampleLoss).not.toBeNull();
+      expect(store().rules).toBe(rulesBefore);
+    });
   });
 
-  it("loading a valid CSV populates the dataset and compiles the default per-example loss against theta_0/theta_1", () => {
-    useWorkspaceStore.getState().setMode("dataset");
-    return useWorkspaceStore
-      .getState()
-      .loadDatasetFromFile(makeCsvFile(VALID_CSV))
-      .then(() => {
-        const state = useWorkspaceStore.getState();
-        expect(state.datasetError).toBeNull();
-        expect(state.dataset?.columns).toEqual(["feature", "target"]);
-        expect(state.dataset?.rows).toHaveLength(3);
-        expect(state.perExampleLossErrors).toEqual([]);
-        expect(state.activePerExampleLoss).not.toBeNull();
-      });
+  describe("custom formulas", () => {
+    beforeEach(async () => {
+      store().setMode("dataset");
+      await store().loadDatasetFromFile(makeCsvFile(VALID_CSV));
+      store().setModelKind("custom");
+    });
+
+    it("setDatasetPrimaryVariableNames_custom_regeneratesRulesAndRekeysInitialValues", () => {
+      store().setDatasetPrimaryVariableNames(["weight", "bias"]);
+      expect(names()).toEqual(["weight", "bias"]);
+      expect(store().datasetInitialValues).toEqual({ weight: 0, bias: 0 });
+      for (const rule of store().rules) expect(rule.sourceText).toContain("weight_next");
+    });
+
+    it("setDatasetPrimaryVariableNames_formulaStillUsesOldNames_disablesTrainingRatherThanCrashing", () => {
+      store().setDatasetPrimaryVariableNames(["weight", "bias"]);
+      expect(store().activePerExampleLoss).toBeNull();
+      expect(store().perExampleLossErrors.length).toBeGreaterThan(0);
+
+      store().setPerExampleLossSourceText("prediction = weight * x + bias\nerror = prediction - y\nloss = error^2");
+      expect(store().activePerExampleLoss).not.toBeNull();
+      expect(store().perExampleLossErrors).toEqual([]);
+    });
+
+    it("setPerExampleLossSourceText_originalColumnNames_compile", () => {
+      store().setPerExampleLossSourceText("prediction = theta_0 * feature + theta_1\nloss = (prediction - target)^2");
+      expect(store().perExampleLossErrors).toEqual([]);
+      expect(store().activePerExampleLoss).not.toBeNull();
+    });
+
+    it("setPerExampleLossSourceText_missingColumn_reportsSpecificError", () => {
+      store().setPerExampleLossSourceText("loss = (theta_0 - y_true)^2");
+      expect(store().perExampleLossErrors.some((e) => /Undefined variable 'y_true'/.test(e.message))).toBe(true);
+    });
+
+    it("setPerExampleLossSourceText_typo_keepsLastCompiledFormula", () => {
+      const before = store().activePerExampleLoss;
+      store().setPerExampleLossSourceText("prediction = theta_0 * x +");
+      expect(store().perExampleLossErrors.length).toBeGreaterThan(0);
+      expect(store().activePerExampleLoss).toBe(before);
+    });
+
+    it("setPerExampleLossSourceText_withoutPrediction_trainsButCannotDraw", () => {
+      store().setPerExampleLossSourceText("loss = (theta_0 * x + theta_1 - y)^2");
+      expect(store().activePerExampleLoss).not.toBeNull();
+      expect(store().modelDefinesPrediction).toBe(false);
+    });
   });
 
-  it("loading an invalid CSV sets datasetError and leaves any previously loaded dataset alone", () => {
-    useWorkspaceStore.getState().setMode("dataset");
-    return useWorkspaceStore
-      .getState()
-      .loadDatasetFromFile(makeCsvFile(VALID_CSV))
-      .then(() =>
-        useWorkspaceStore
-          .getState()
-          .loadDatasetFromFile(makeCsvFile("feature,target\nabc,4\n", "bad.csv"))
-          .then(() => {
-            const state = useWorkspaceStore.getState();
-            expect(state.datasetError).toMatch(/Row 1, column 'feature'/);
-            expect(state.dataset?.columns).toEqual(["feature", "target"]); // the earlier good load, untouched
-          }),
-      );
+  it("setDatasetPrimaryVariableNames_inSurfaceMode_leavesLiveRulesAlone", () => {
+    const before = store().rules;
+    store().setDatasetPrimaryVariableNames(["weight", "bias"]);
+    expect(store().rules).toBe(before);
+    expect(names()).toEqual(["x", "y"]);
   });
 
-  it("loading a dataset with different columns nulls the per-example loss rather than pairing it with mismatched columns", () => {
-    useWorkspaceStore.getState().setMode("dataset");
-    return useWorkspaceStore
-      .getState()
-      .loadDatasetFromFile(makeCsvFile(VALID_CSV))
-      .then(() =>
-        useWorkspaceStore
-          .getState()
-          .loadDatasetFromFile(makeCsvFile("x1,y1\n1,2\n2,4\n", "different-columns.csv"))
-          .then(() => {
-            const state = useWorkspaceStore.getState();
-            expect(state.dataset?.columns).toEqual(["x1", "y1"]);
-            // The default per-example loss text references `feature`/`target`, which no
-            // longer exist — must not silently keep running against the old columns.
-            expect(state.activePerExampleLoss).toBeNull();
-            expect(state.perExampleLossErrors.length).toBeGreaterThan(0);
-          }),
-      );
-  });
-
-  it("renaming primary variables while the per-example loss still uses the old names disables running rather than crashing", () => {
-    useWorkspaceStore.getState().setMode("dataset");
-    return useWorkspaceStore
-      .getState()
-      .loadDatasetFromFile(makeCsvFile(VALID_CSV))
-      .then(() => {
-        const before = useWorkspaceStore.getState();
-        expect(before.activePerExampleLoss).not.toBeNull();
-
-        // The default per-example loss text says "theta_0 * feature + theta_1".
-        // Renaming away from theta_0/theta_1 immediately updates the (always
-        // valid) rules/initial-values, but must null the per-example loss
-        // rather than pairing a stale, old-named compiled loss with the new
-        // primaryVariables (the exact crash this regression test guards).
-        useWorkspaceStore.getState().setDatasetPrimaryVariableNames(["weight", "bias"]);
-        const after = useWorkspaceStore.getState();
-
-        expect(after.datasetPrimaryVariableNames).toEqual(["weight", "bias"]);
-        expect(after.primaryVariables.map((v) => v.name)).toEqual(["weight", "bias"]);
-        expect(after.activePerExampleLoss).toBeNull();
-        expect(after.perExampleLossErrors.length).toBeGreaterThan(0);
-        for (const rule of after.rules) expect(rule.sourceText).toContain("weight_next");
-
-        // The presenter can now fix the per-example loss text to match, in
-        // one further step, without renaming again.
-        useWorkspaceStore.getState().setPerExampleLossSourceText("prediction = weight * feature + bias\nerror = prediction - target\nloss = error^2");
-        const fixed = useWorkspaceStore.getState();
-        expect(fixed.activePerExampleLoss).not.toBeNull();
-        expect(fixed.perExampleLossErrors).toEqual([]);
-      });
-  });
-
-  it("editing the per-example loss text against a missing column surfaces a specific compile error", () => {
-    useWorkspaceStore.getState().setMode("dataset");
-    return useWorkspaceStore
-      .getState()
-      .loadDatasetFromFile(makeCsvFile(VALID_CSV))
-      .then(() => {
-        useWorkspaceStore.getState().setPerExampleLossSourceText("loss = (theta_0 - y_true)^2");
-        const state = useWorkspaceStore.getState();
-        expect(state.perExampleLossErrors.some((e) => /Undefined variable 'y_true'/.test(e.message))).toBe(true);
-      });
+  it("setFocusedRuleIdAndParameterHover_storeViewState", () => {
+    store().setFocusedRuleId("abc");
+    store().setParameterHover({ w: 1, b: 2 });
+    expect(store()).toMatchObject({ focusedRuleId: "abc", parameterHover: { w: 1, b: 2 } });
   });
 
   it("setBatchSize clamps to a minimum of 1", () => {
-    useWorkspaceStore.getState().setBatchSize(-5);
-    expect(useWorkspaceStore.getState().batchSize).toBe(1);
+    store().setBatchSize(-5);
+    expect(store().batchSize).toBe(1);
   });
 });

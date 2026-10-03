@@ -14,11 +14,20 @@
  * so there's exactly one source of truth for "is this equation valid."
  */
 
+import { defaultColumnsFor } from "../dataset/columnMapping";
+import { INPUT_NAME, TARGET_NAME, type ModelKind } from "../dataset/modelTemplates";
 import type { SimLimits } from "../simulation/types";
 import type { GridBounds } from "../visualization/grid";
 
-/** Bumped to 4 when `surfaceBounds` (DESIGN.md §8's presenter-configurable view bounds) was added — an older file is rejected outright (§17's "unsupported schemaVersion" row) rather than silently defaulted, keeping exactly one shape per version. */
-export const WORKSPACE_SCHEMA_VERSION = 4;
+/**
+ * Bumped to 5 when dataset mode gained model templates and column mapping
+ * (`modelKind`, `inputColumn`, `targetColumn`). Version 4 files are still
+ * accepted via `upgradeFromV4`; anything older or unknown is rejected
+ * outright (§17's "unsupported schemaVersion" row).
+ */
+export const WORKSPACE_SCHEMA_VERSION = 5;
+const LEGACY_SCHEMA_VERSION = 4;
+const MODEL_KINDS: readonly ModelKind[] = ["linear", "logistic", "custom"];
 
 export interface RuleSnapshot {
   name: string;
@@ -46,6 +55,10 @@ export interface WorkspaceSnapshot {
   seed: number;
   noiseLevel: number;
   datasetPrimaryVariableNames: [string, string];
+  modelKind: ModelKind;
+  inputColumn: string | null;
+  targetColumn: string | null;
+  /** The CSV as loaded (every column), not the column-mapped training data. */
   dataset: DatasetSnapshot | null;
   datasetFileName: string | null;
   perExampleLossSourceText: string;
@@ -174,10 +187,29 @@ function validateGridBounds(value: unknown, field: string, errors: string[]): Gr
   return { xMin: value.xMin, xMax: value.xMax, yMin: value.yMin, yMax: value.yMax };
 }
 
+function isNullableString(value: unknown): value is string | null {
+  return value === null || isString(value);
+}
+
+/**
+ * A version 4 file's dataset mode was always a free-form formula over the
+ * CSV's own column names, so it upgrades to the Custom model (which keeps
+ * every identifier-named column in scope — the saved formula still
+ * compiles). Columns literally named `x`/`y` map to themselves so a formula
+ * using them keeps its meaning; otherwise the usual first/last default.
+ */
+function upgradeFromV4(value: Record<string, unknown>): Record<string, unknown> {
+  const columns = isRecord(value.dataset) && isStringArray(value.dataset.columns) ? value.dataset.columns : [];
+  const hasXAndY = columns.includes(INPUT_NAME) && columns.includes(TARGET_NAME);
+  const { input, target } = hasXAndY ? { input: INPUT_NAME, target: TARGET_NAME } : defaultColumnsFor(columns, null, null);
+  return { ...value, schemaVersion: WORKSPACE_SCHEMA_VERSION, modelKind: "custom", inputColumn: input, targetColumn: target };
+}
+
 /** Structural validation only (see module doc) — rejects the whole snapshot on any error rather than partially salvaging a malformed file. */
-export function validateWorkspaceSnapshot(value: unknown): SnapshotValidationResult {
+export function validateWorkspaceSnapshot(input: unknown): SnapshotValidationResult {
   const errors: string[] = [];
-  if (!isRecord(value)) return { snapshot: null, errors: ["workspace file must be a JSON object"] };
+  if (!isRecord(input)) return { snapshot: null, errors: ["workspace file must be a JSON object"] };
+  const value = input.schemaVersion === LEGACY_SCHEMA_VERSION ? upgradeFromV4(input) : input;
 
   if (value.schemaVersion !== WORKSPACE_SCHEMA_VERSION) {
     errors.push(`unsupported schemaVersion ${JSON.stringify(value.schemaVersion)} (expected ${WORKSPACE_SCHEMA_VERSION})`);
@@ -207,6 +239,10 @@ export function validateWorkspaceSnapshot(value: unknown): SnapshotValidationRes
   if (!Array.isArray(names) || names.length !== 2 || !names.every(isString)) {
     errors.push("datasetPrimaryVariableNames must be a two-element string array");
   }
+
+  if (!MODEL_KINDS.includes(value.modelKind as ModelKind)) errors.push(`modelKind must be one of ${MODEL_KINDS.join(", ")}`);
+  if (!isNullableString(value.inputColumn)) errors.push("inputColumn must be a string or null");
+  if (!isNullableString(value.targetColumn)) errors.push("targetColumn must be a string or null");
 
   const dataset = validateDatasetSnapshot(value.dataset, errors);
   if (value.datasetFileName !== null && !isString(value.datasetFileName)) errors.push("datasetFileName must be a string or null");
@@ -238,6 +274,9 @@ export function validateWorkspaceSnapshot(value: unknown): SnapshotValidationRes
       seed: value.seed as number,
       noiseLevel: value.noiseLevel as number,
       datasetPrimaryVariableNames: names as [string, string],
+      modelKind: value.modelKind as ModelKind,
+      inputColumn: value.inputColumn as string | null,
+      targetColumn: value.targetColumn as string | null,
       dataset,
       datasetFileName: (value.datasetFileName ?? null) as string | null,
       perExampleLossSourceText: value.perExampleLossSourceText as string,

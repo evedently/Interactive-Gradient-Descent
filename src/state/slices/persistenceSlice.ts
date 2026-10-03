@@ -1,5 +1,5 @@
 import type { StateCreator } from "zustand";
-import { compilePerExampleLoss } from "../../domain/dataset/perExampleLoss";
+import { resolveDatasetModel } from "../../domain/dataset/datasetModel";
 import { parseLossFunction, parseManualGradientComponent } from "../../domain/lossFunction";
 import { validateWorkspaceSnapshot, WORKSPACE_SCHEMA_VERSION, type WorkspaceSnapshot } from "../../domain/persistence/workspaceSnapshot";
 import type { PrimaryVariable } from "../../domain/rules/ruleCompiler";
@@ -57,22 +57,36 @@ function lossStateFromSnapshot(snapshot: WorkspaceSnapshot): Partial<WorkspaceSt
   };
 }
 
+/** The dataset-slice fields a snapshot restores, with the model re-resolved through the same path live edits use. */
 function datasetStateFromSnapshot(snapshot: WorkspaceSnapshot, primaryVariables: readonly PrimaryVariable[]): Partial<WorkspaceState> {
-  const perExampleLossResult = snapshot.dataset
-    ? compilePerExampleLoss(snapshot.perExampleLossSourceText, primaryVariables, snapshot.dataset.columns)
-    : { compiled: null, errors: [] };
+  const model = resolveDatasetModel({
+    sourceDataset: snapshot.dataset,
+    modelKind: snapshot.modelKind,
+    inputColumn: snapshot.inputColumn,
+    targetColumn: snapshot.targetColumn,
+    customSourceText: snapshot.perExampleLossSourceText,
+    customParameterNames: snapshot.datasetPrimaryVariableNames,
+  });
 
   return {
     mode: snapshot.mode,
     primaryVariables,
     datasetPrimaryVariableNames: snapshot.datasetPrimaryVariableNames,
-    dataset: snapshot.dataset,
+    modelKind: snapshot.modelKind,
+    inputColumn: snapshot.inputColumn,
+    targetColumn: snapshot.targetColumn,
+    sourceDataset: snapshot.dataset,
+    dataset: model.dataset,
     datasetFileName: snapshot.datasetFileName,
     datasetError: null,
     datasetWarning: null,
+    modelDataError: model.dataError,
     perExampleLossSourceText: snapshot.perExampleLossSourceText,
-    perExampleLossErrors: perExampleLossResult.errors,
-    activePerExampleLoss: perExampleLossResult.compiled,
+    perExampleLossErrors: model.formulaErrors,
+    activePerExampleLoss: model.compiled,
+    modelDefinesPrediction: model.definesPrediction,
+    focusedRuleId: null,
+    parameterHover: null,
     datasetInitialValues: snapshot.datasetInitialValues,
     batchSize: snapshot.batchSize,
     datasetRunTargetKind: snapshot.datasetRunTargetKind,
@@ -96,7 +110,10 @@ export const createPersistenceSlice: StateCreator<WorkspaceState, [], [], Persis
       seed: state.seed,
       noiseLevel: state.noiseLevel,
       datasetPrimaryVariableNames: state.datasetPrimaryVariableNames,
-      dataset: state.dataset,
+      modelKind: state.modelKind,
+      inputColumn: state.inputColumn,
+      targetColumn: state.targetColumn,
+      dataset: state.sourceDataset,
       datasetFileName: state.datasetFileName,
       perExampleLossSourceText: state.perExampleLossSourceText,
       datasetInitialValues: state.datasetInitialValues,
@@ -113,7 +130,7 @@ export const createPersistenceSlice: StateCreator<WorkspaceState, [], [], Persis
     const { snapshot, errors } = validateWorkspaceSnapshot(value);
     if (!snapshot) return { errors };
 
-    const primaryVariables = primaryVariablesFor(snapshot.mode, snapshot.datasetPrimaryVariableNames);
+    const primaryVariables = primaryVariablesFor(snapshot.mode, snapshot.modelKind, snapshot.datasetPrimaryVariableNames);
 
     // One atomic update, so no render ever sees a half-loaded workspace.
     set({

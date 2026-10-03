@@ -15,6 +15,9 @@ function validSnapshot(): Record<string, unknown> {
     seed: 42,
     noiseLevel: 0,
     datasetPrimaryVariableNames: ["theta_0", "theta_1"],
+    modelKind: "linear",
+    inputColumn: null,
+    targetColumn: null,
     dataset: null,
     datasetFileName: null,
     perExampleLossSourceText: "",
@@ -28,7 +31,52 @@ function validSnapshot(): Record<string, unknown> {
   };
 }
 
+function legacyV4Snapshot(): Record<string, unknown> {
+  const value = validSnapshot();
+  value.schemaVersion = 4;
+  delete value.modelKind;
+  delete value.inputColumn;
+  delete value.targetColumn;
+  return value;
+}
+
 describe("validateWorkspaceSnapshot", () => {
+  it("validateWorkspaceSnapshot_modelFields_roundTrip", () => {
+    const value = validSnapshot();
+    value.modelKind = "logistic";
+    value.inputColumn = "hours";
+    value.targetColumn = "passed";
+    const { snapshot, errors } = validateWorkspaceSnapshot(value);
+    expect(errors).toEqual([]);
+    expect(snapshot).toMatchObject({ modelKind: "logistic", inputColumn: "hours", targetColumn: "passed" });
+  });
+
+  it("validateWorkspaceSnapshot_unknownModelKind_rejected", () => {
+    const value = validSnapshot();
+    value.modelKind = "neural";
+    expect(validateWorkspaceSnapshot(value).errors.some((e) => /modelKind/.test(e))).toBe(true);
+  });
+
+  it("validateWorkspaceSnapshot_v4File_upgradesToCustomModel", () => {
+    const value = legacyV4Snapshot();
+    value.dataset = { columns: ["feature", "extra", "target"], rows: [{ feature: 1, extra: 0, target: 2 }] };
+    const { snapshot, errors } = validateWorkspaceSnapshot(value);
+    expect(errors).toEqual([]);
+    expect(snapshot).toMatchObject({ schemaVersion: WORKSPACE_SCHEMA_VERSION, modelKind: "custom", inputColumn: "feature", targetColumn: "target" });
+  });
+
+  it("validateWorkspaceSnapshot_v4FileWithXAndYColumns_mapsThemToThemselves", () => {
+    const value = legacyV4Snapshot();
+    value.dataset = { columns: ["y", "x"], rows: [{ y: 1, x: 2 }] };
+    const { snapshot } = validateWorkspaceSnapshot(value);
+    expect(snapshot).toMatchObject({ inputColumn: "x", targetColumn: "y" });
+  });
+
+  it("validateWorkspaceSnapshot_v4FileWithoutDataset_upgradesWithNoColumns", () => {
+    const { snapshot } = validateWorkspaceSnapshot(legacyV4Snapshot());
+    expect(snapshot).toMatchObject({ modelKind: "custom", inputColumn: null, targetColumn: null });
+  });
+
   it("accepts a well-formed snapshot", () => {
     const { snapshot, errors } = validateWorkspaceSnapshot(validSnapshot());
     expect(errors).toEqual([]);

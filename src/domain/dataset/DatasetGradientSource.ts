@@ -7,6 +7,21 @@ import type { CompiledPerExampleLoss, Dataset, DatasetSample } from "./types";
 /** Central-difference step for the per-example-loss gradient (DESIGN.md §7: "same differentiation engine as §5"). A multi-statement per-example loss is differentiated numerically rather than symbolically — §5's symbolic engine only ever differentiates a single expression tree, and building one for an arbitrary assignment sequence is materially more machinery than a numeric fallback that already meets the same tolerance-based correctness bar (§5/§10). */
 const GRADIENT_EPSILON = 1e-4;
 
+/** One row's per-example loss gradient with respect to every primary variable — the single definition both batch sampling and the step inspector use. */
+export function rowLossGradient(
+  perExampleLoss: CompiledPerExampleLoss,
+  row: Readonly<Record<string, number>>,
+  coords: Readonly<Record<string, number>>,
+  primaryVariables: readonly PrimaryVariable[],
+): Record<string, number> {
+  return numericGradientN(
+    (c) => evaluatePerExampleLossForRow(perExampleLoss, c, row),
+    coords,
+    primaryVariables.map((v) => v.name),
+    GRADIENT_EPSILON,
+  );
+}
+
 /**
  * Computes and samples the mini-batch/full gradient of a per-example loss
  * over a `Dataset` (DESIGN.md §7's `DatasetGradientSource`). Rows are
@@ -59,10 +74,6 @@ export class DatasetGradientSource {
     return indices;
   }
 
-  private evaluateRowLoss(row: Record<string, number>, coords: Readonly<Record<string, number>>): number {
-    return evaluatePerExampleLossForRow(this.perExampleLoss, coords, row);
-  }
-
   private aggregateOverRows(
     rowIndices: readonly number[],
     coords: Readonly<Record<string, number>>,
@@ -74,8 +85,8 @@ export class DatasetGradientSource {
 
     for (const rowIndex of rowIndices) {
       const row = this.dataset.rows[rowIndex];
-      lossSum += this.evaluateRowLoss(row, coords);
-      const rowGradient = numericGradientN((c) => this.evaluateRowLoss(row, c), coords, names, GRADIENT_EPSILON);
+      lossSum += evaluatePerExampleLossForRow(this.perExampleLoss, coords, row);
+      const rowGradient = rowLossGradient(this.perExampleLoss, row, coords, this.primaryVariables);
       for (const name of names) gradientSum[name] += rowGradient[name];
     }
 
@@ -112,6 +123,7 @@ export class DatasetGradientSource {
       epoch: this.epoch,
       batchIndex: this.batchIndex,
       examplesProcessed: this.examplesProcessed,
+      batchRowIndices,
     };
   }
 }

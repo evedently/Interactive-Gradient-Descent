@@ -126,6 +126,7 @@ export class DatasetSimulationRunner extends RuleRunnerBase<DatasetTrajectoryPoi
       epoch: sample.epoch,
       batchIndex: sample.batchIndex,
       examplesProcessed: sample.examplesProcessed,
+      batchRowIndices: sample.batchRowIndices,
     };
   }
 }
