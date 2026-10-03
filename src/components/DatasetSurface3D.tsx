@@ -1,4 +1,3 @@
-import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useMemo } from "react";
 import * as THREE from "three";
@@ -13,6 +12,7 @@ import { clamp } from "../lib/math";
 import { useWorkspaceStore } from "../state/workspaceStore";
 import type { DatasetRuleRunnerEntry } from "./MetricCharts";
 import { DRAG_PLANE_SIZE, DragCatchPlane, MARKER_LIFT, RuleOverlayMarks, SCENE_CAMERA, StartMarker, SurfaceBackdrop, TRAJECTORY_LIFT } from "./surface3d/SceneParts";
+import { CameraModeButtons, SceneOrbitControls } from "./surface3d/CameraControls";
 import { useMarkerDrag } from "./surface3d/useMarkerDrag";
 
 /**
@@ -48,7 +48,10 @@ function RuleOverlay({
         (p) =>
           new THREE.Vector3(view.toVisualX(p.coords[aName]), normalizeHeight(p.fullLoss, min, span) + TRAJECTORY_LIFT, view.toVisualZ(p.coords[bName])),
       ),
-    [runner, min, span, aName, bName, view],
+    // Keyed on the trajectory array and its length, not the runner: a runner
+    // stays the same object while its path grows (push) and Reset swaps in
+    // a new array, so keying on `runner` drew a stale path that never went away.
+    [runner.trajectory, runner.trajectory.length, min, span, aName, bName, view],
   );
   const currentVisual = new THREE.Vector3(
     view.toVisualX(current.coords[aName]),
@@ -103,9 +106,7 @@ export function DatasetSurface3D({ entries, grid, primaryVariables, dataset, per
 
   return (
     <div className="surface3d-container">
-      <div className="view-controls">
-        <button onClick={() => controlsRef.current?.reset()}>Reset view</button>
-      </div>
+      <CameraModeButtons controlsRef={controlsRef} />
       <Canvas camera={SCENE_CAMERA}>
         <SurfaceBackdrop geometry={geometry} />
 
@@ -132,8 +133,7 @@ export function DatasetSurface3D({ entries, grid, primaryVariables, dataset, per
             <RuleOverlay key={e.rule.id} entry={e} min={min} span={span} aName={aName} bName={bName} view={view} />
           ))}
 
-        {/* enableDamping defaults to true in drei's OrbitControls — off here for the same reason as surface mode's Surface3D: no residual momentum after a rotate/zoom gesture. */}
-        <OrbitControls ref={controlsRef} enableDamping={false} enableRotate enablePan enableZoom />
+        <SceneOrbitControls controlsRef={controlsRef} />
       </Canvas>
     </div>
   );

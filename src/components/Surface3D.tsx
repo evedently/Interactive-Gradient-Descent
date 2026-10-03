@@ -1,4 +1,3 @@
-import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useMemo } from "react";
 import * as THREE from "three";
@@ -11,6 +10,7 @@ import { useRunnersVersion } from "../hooks/useRunnersVersion";
 import { clamp } from "../lib/math";
 import { useWorkspaceStore } from "../state/workspaceStore";
 import { DRAG_PLANE_SIZE, DragCatchPlane, MARKER_LIFT, RuleOverlayMarks, SCENE_CAMERA, StartMarker, SurfaceBackdrop, TRAJECTORY_LIFT } from "./surface3d/SceneParts";
+import { CameraModeButtons, SceneOrbitControls } from "./surface3d/CameraControls";
 import { useMarkerDrag } from "./surface3d/useMarkerDrag";
 
 export type RuleRunnerEntry = RuleEntry<SimulationRunner>;
@@ -35,7 +35,10 @@ function RuleOverlay({ entry, min, span, viewTransform }: { entry: RuleRunnerEnt
       decimateForDisplay(runner.trajectory, MAX_RENDERED_TRAJECTORY_POINTS).map(
         (p) => new THREE.Vector3(viewTransform.toVisualX(p.x), normalizeHeight(p.loss, min, span) + TRAJECTORY_LIFT, viewTransform.toVisualZ(p.y)),
       ),
-    [runner, min, span, viewTransform],
+    // Keyed on the trajectory array and its length, not the runner: a runner
+    // stays the same object while its path grows (push) and Reset swaps in
+    // a new array, so keying on `runner` drew a stale path that never went away.
+    [runner.trajectory, runner.trajectory.length, min, span, viewTransform],
   );
   const currentVisual = new THREE.Vector3(
     viewTransform.toVisualX(current.x),
@@ -53,8 +56,6 @@ export function Surface3D({ entries }: Props) {
   const activeLossAst = useWorkspaceStore((s) => s.activeLoss.ast);
   const startPoint = useWorkspaceStore((s) => s.startPoint);
   const setStartPoint = useWorkspaceStore((s) => s.setStartPoint);
-  const cameraMode = useWorkspaceStore((s) => s.cameraMode);
-  const setCameraMode = useWorkspaceStore((s) => s.setCameraMode);
   const bounds = useWorkspaceStore((s) => s.surfaceBounds);
 
   const { geometry, min, span } = useMemo(() => buildSurfaceGeometry(activeLossAst, bounds), [activeLossAst, bounds]);
@@ -66,15 +67,7 @@ export function Surface3D({ entries }: Props) {
 
   return (
     <div className="surface3d-container">
-      <div className="view-controls">
-        <button className={cameraMode === "rotate" ? "active" : ""} onClick={() => setCameraMode("rotate")} title="Drag to rotate the camera">
-          Rotate
-        </button>
-        <button className={cameraMode === "pan" ? "active" : ""} onClick={() => setCameraMode("pan")} title="Drag to pan the camera">
-          Pan
-        </button>
-        <button onClick={() => controlsRef.current?.reset()}>Reset view</button>
-      </div>
+      <CameraModeButtons controlsRef={controlsRef} />
       <Canvas camera={SCENE_CAMERA}>
         <SurfaceBackdrop geometry={geometry} />
 
@@ -101,19 +94,7 @@ export function Surface3D({ entries }: Props) {
             <RuleOverlay key={e.rule.id} entry={e} min={min} span={span} viewTransform={viewTransform} />
           ))}
 
-        {/* enableDamping defaults to true in drei's OrbitControls — any residual scroll/drag velocity would otherwise keep easing the camera forward/around for a second or two after the gesture ends, which reads as unwanted drift for a precise teaching tool. Off entirely: input maps directly to camera motion. */}
-        <OrbitControls
-          ref={controlsRef}
-          enableDamping={false}
-          enableRotate={cameraMode === "rotate"}
-          enablePan={cameraMode === "pan"}
-          enableZoom
-          mouseButtons={
-            cameraMode === "rotate"
-              ? { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }
-              : { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }
-          }
-        />
+        <SceneOrbitControls controlsRef={controlsRef} />
       </Canvas>
     </div>
   );
