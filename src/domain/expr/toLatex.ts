@@ -25,6 +25,18 @@ function precedenceOf(node: ExprNode): number {
   }
 }
 
+/**
+ * Multi-letter names (`prediction`, `error`) render as one upright word —
+ * plain LaTeX would set them as a product of italic single letters. The
+ * part after the first `_` becomes a subscript (`theta_0` → "theta" with subscript 0).
+ */
+export function identifierToLatex(name: string): string {
+  const underscore = name.indexOf("_");
+  const base = underscore === -1 ? name : name.slice(0, underscore);
+  const baseLatex = base.length > 1 ? `\\mathrm{${base}}` : base;
+  return underscore === -1 ? baseLatex : `${baseLatex}_{${name.slice(underscore + 1).replace(/_/g, "\\_")}}`;
+}
+
 /** Renders `child` for a slot whose surrounding operator has precedence `contextPrec`. */
 function renderChild(child: ExprNode, contextPrec: number, needsStrictlyHigher: boolean): string {
   const rendered = render(child);
@@ -43,7 +55,7 @@ function render(node: ExprNode): string {
     case "Number":
       return formatNumber(node.value);
     case "Identifier":
-      return node.name;
+      return identifierToLatex(node.name);
     case "Unary":
       return `-${renderChild(node.operand, UNARY_PRECEDENCE, false)}`;
     case "Call": {

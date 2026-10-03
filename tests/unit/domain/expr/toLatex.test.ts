@@ -32,4 +32,17 @@ describe("exprToLatex", () => {
   it("renders log(x, base) with the base as a subscript", () => {
     expect(exprToLatex(parseExpression("log(x, 2)"))).toBe("\\log_{2}\\left(x\\right)");
   });
+
+  it("exprToLatex_multiLetterIdentifier_rendersUpright", () => {
+    expect(exprToLatex(parseExpression("prediction - y"))).toBe("\\mathrm{prediction} - y");
+  });
+
+  it("exprToLatex_underscoreIdentifier_rendersSubscript", () => {
+    expect(exprToLatex(parseExpression("theta_0 * x"))).toBe("\\mathrm{theta}_{0}\\cdot x");
+    expect(exprToLatex(parseExpression("w_1"))).toBe("w_{1}");
+  });
+
+  it("exprToLatex_singleLetterIdentifier_unchanged", () => {
+    expect(exprToLatex(parseExpression("w * x + b"))).toBe("w\\cdot x + b");
+  });
 });

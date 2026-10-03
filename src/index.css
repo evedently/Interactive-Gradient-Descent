@@ -866,3 +866,70 @@ body {
 .rule-drag-handle:active {
   cursor: grabbing;
 }
+
+/* Dataset mode setup sections (DatasetPanel) */
+.dataset-section {
+  padding: 8px 0 10px 0;
+  border-bottom: 1px solid #2c3038;
+}
+
+.dataset-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dataset-section-title {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c3c8d0;
+}
+
+.dataset-section select {
+  background: #101215;
+  color: #e8e8ec;
+  border: 1px solid #333842;
+  border-radius: 4px;
+  padding: 3px 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.model-kind-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.model-kind-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.formula-display {
+  margin: 6px 0;
+  padding: 8px;
+  background: #101215;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.secondary-button {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #3a4048;
+  background: #262a31;
+  color: #e8e8ec;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.secondary-button:hover {
+  background: #323841;
+}
