@@ -1,16 +1,10 @@
-import { useRef } from "react";
 import type { CompiledPerExampleLoss, Dataset } from "../domain/dataset/types";
-import type { CompiledRule, PrimaryVariable } from "../domain/rules/ruleCompiler";
+import type { PrimaryVariable } from "../domain/rules/ruleCompiler";
 import { deriveSeed } from "../domain/simulation/SeededRng";
 import { DatasetSimulationRunner } from "../domain/simulation/DatasetSimulationRunner";
 import type { SimLimits } from "../domain/simulation/types";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
-
-interface RunnerKey {
-  dataset: Dataset;
-  perExampleLoss: CompiledPerExampleLoss;
-  compiledRule: CompiledRule;
-}
+import { useKeyedRunners } from "./useKeyedRunners";
 
 /**
  * Dataset mode's counterpart to `useMultiRunners` (DESIGN.md §18 Phase 7):
@@ -32,35 +26,21 @@ export function useDatasetRunners(
   batchSize: number,
   simLimits: SimLimits,
 ): Map<string, DatasetSimulationRunner> {
-  const runners = useRef(new Map<string, DatasetSimulationRunner>());
-  const keys = useRef(new Map<string, RunnerKey>());
-
-  const currentIds = new Set(rules.map((r) => r.id));
-  for (const id of Array.from(runners.current.keys())) {
-    if (!currentIds.has(id)) {
-      runners.current.delete(id);
-      keys.current.delete(id);
-    }
-  }
-
-  if (dataset && perExampleLoss) {
-    for (const rule of rules) {
-      const prevKey = keys.current.get(rule.id);
-      const changed =
-        !prevKey || prevKey.dataset !== dataset || prevKey.perExampleLoss !== perExampleLoss || prevKey.compiledRule !== rule.activeCompiledRule;
-      if (changed) {
-        const seed = deriveSeed(workspaceSeed, rule.id);
-        runners.current.set(
-          rule.id,
-          new DatasetSimulationRunner(rule.activeCompiledRule, primaryVariables, { ...initialValues }, dataset, perExampleLoss, batchSize, seed, simLimits),
-        );
-        keys.current.set(rule.id, { dataset, perExampleLoss, compiledRule: rule.activeCompiledRule });
-      }
-    }
-  } else {
-    runners.current.clear();
-    keys.current.clear();
-  }
-
-  return runners.current;
+  // No dataset or no valid per-example loss yet: no runners at all.
+  const ready = dataset !== null && perExampleLoss !== null;
+  return useKeyedRunners(
+    ready ? rules : [],
+    (rule) => [dataset, perExampleLoss, rule.activeCompiledRule],
+    (rule) =>
+      new DatasetSimulationRunner(
+        rule.activeCompiledRule,
+        primaryVariables,
+        { ...initialValues },
+        dataset!,
+        perExampleLoss!,
+        batchSize,
+        deriveSeed(workspaceSeed, rule.id),
+        simLimits,
+      ),
+  );
 }

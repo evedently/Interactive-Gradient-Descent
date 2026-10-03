@@ -1,15 +1,9 @@
-import { useRef } from "react";
 import type { ResolvedLoss } from "../domain/lossFunction";
-import type { CompiledRule } from "../domain/rules/ruleCompiler";
 import { deriveSeed } from "../domain/simulation/SeededRng";
 import { SimulationRunner } from "../domain/simulation/SimulationRunner";
 import type { SimLimits } from "../domain/simulation/types";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
-
-interface RunnerKey {
-  loss: ResolvedLoss;
-  compiledRule: CompiledRule;
-}
+import { useKeyedRunners } from "./useKeyedRunners";
 
 /**
  * Maintains one `SimulationRunner` per rule, replacing a rule's runner only
@@ -39,26 +33,9 @@ export function useMultiRunners(
   noiseLevel: number,
   simLimits: SimLimits,
 ): Map<string, SimulationRunner> {
-  const runners = useRef(new Map<string, SimulationRunner>());
-  const keys = useRef(new Map<string, RunnerKey>());
-
-  const currentIds = new Set(rules.map((r) => r.id));
-  for (const id of Array.from(runners.current.keys())) {
-    if (!currentIds.has(id)) {
-      runners.current.delete(id);
-      keys.current.delete(id);
-    }
-  }
-
-  for (const rule of rules) {
-    const prevKey = keys.current.get(rule.id);
-    const changed = !prevKey || prevKey.loss !== loss || prevKey.compiledRule !== rule.activeCompiledRule;
-    if (changed) {
-      const seed = deriveSeed(workspaceSeed, rule.id);
-      runners.current.set(rule.id, new SimulationRunner(loss, rule.activeCompiledRule, startPoint, seed, noiseLevel, simLimits));
-      keys.current.set(rule.id, { loss, compiledRule: rule.activeCompiledRule });
-    }
-  }
-
-  return runners.current;
+  return useKeyedRunners(
+    rules,
+    (rule) => [loss, rule.activeCompiledRule],
+    (rule) => new SimulationRunner(loss, rule.activeCompiledRule, startPoint, deriveSeed(workspaceSeed, rule.id), noiseLevel, simLimits),
+  );
 }
