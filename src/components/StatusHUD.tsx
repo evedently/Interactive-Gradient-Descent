@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { SimulationRunner } from "../domain/simulation/SimulationRunner";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
 import { useRunnersVersion } from "../hooks/useRunnersVersion";
+import { formatLoss } from "../lib/format";
 
 interface Props {
   rules: RuleWorkspaceEntry[];
@@ -54,7 +55,7 @@ export function StatusHUD({ rules, runners }: Props) {
               <dt>Elapsed</dt>
               <dd>{(point.elapsedMs / 1000).toFixed(2)}s</dd>
               <dt>Loss</dt>
-              <dd>{Number.isFinite(point.loss) ? point.loss.toFixed(6) : String(point.loss)}</dd>
+              <dd>{formatLoss(point.loss)}</dd>
               <dt>Update magnitude</dt>
               <dd>{updateMagnitude !== null ? updateMagnitude.toFixed(6) : "—"}</dd>
             </dl>

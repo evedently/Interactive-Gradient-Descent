@@ -5,6 +5,7 @@ import { ContourPlot2D } from "./ContourPlot2D";
 import { LossFunctionEditor } from "./LossFunctionEditor";
 import { RulePanel } from "./RulePanel";
 import { ReorderableRuleList } from "./ReorderableRuleList";
+import { RuleListToolbar } from "./RuleListToolbar";
 import { RunControlsPanel } from "./RunControlsPanel";
 import { SettingsGroup } from "./SettingsGroup";
 import { SimulationSettingsPanel } from "./SimulationSettingsPanel";
@@ -13,7 +14,7 @@ import { Surface3D, type RuleRunnerEntry } from "./Surface3D";
 import { ViewBoundsPanel } from "./ViewBoundsPanel";
 import { buildSurfaceExperimentCsv } from "../domain/persistence/experimentCsv";
 import { deriveSeed } from "../domain/simulation/SeededRng";
-import { pauseHiddenRunners, playVisibleRunners } from "../domain/simulation/ruleRunControl";
+import { pauseHiddenRunners } from "../domain/simulation/ruleRunControl";
 import { useContinuousRunAll } from "../hooks/useContinuousRunAll";
 import { useMultiRunners } from "../hooks/useMultiRunners";
 import { useRuleEntries } from "../hooks/useRuleEntries";
@@ -29,7 +30,6 @@ export function SurfaceWorkspaceView() {
   const noiseLevel = useWorkspaceStore((s) => s.noiseLevel);
   const simLimits = useWorkspaceStore((s) => s.simLimits);
   const stepsPerSecond = useWorkspaceStore((s) => s.stepsPerSecond);
-  const addRule = useWorkspaceStore((s) => s.addRule);
 
   // One runner per rule, replaced only when the shared resolved loss or
   // that rule's own compiled rule changes (DESIGN.md §9) — see useMultiRunners.
@@ -64,14 +64,8 @@ export function SurfaceWorkspaceView() {
 
   useContinuousRunAll(entries.map((e) => e.runner), stepsPerSecond);
 
-  const resetAll = () => {
-    for (const { runner } of entries) runner.reset();
-  };
-
   // Hidden rules never run: "Run all" skips them, and hiding a running rule pauses it.
   useEffect(() => pauseHiddenRunners(entries), [entries]);
-
-  const runAll = () => playVisibleRunners(entries);
 
   const exportCsv = () => {
     downloadTextFile("gradient-descent-experiment.csv", buildSurfaceExperimentCsv(rules, runners), "text/csv");
@@ -87,12 +81,7 @@ export function SurfaceWorkspaceView() {
           <RunControlsPanel />
         </SettingsGroup>
 
-        <div className="rule-list-toolbar">
-          <button onClick={addRule}>+ Add rule</button>
-          <button onClick={runAll}>Run all</button>
-          <button onClick={resetAll}>Reset all</button>
-          <button onClick={exportCsv}>Export CSV</button>
-        </div>
+        <RuleListToolbar entries={entries} onExportCsv={exportCsv} />
 
         <ReorderableRuleList
           entries={entries}

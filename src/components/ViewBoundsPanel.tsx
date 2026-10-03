@@ -1,7 +1,7 @@
-import type { ChangeEvent } from "react";
 import { DEFAULT_SURFACE_BOUNDS } from "../domain/visualization/surfaceGeometry";
 import { useWorkspaceStore } from "../state/workspaceStore";
 import { CollapsiblePanel } from "./CollapsiblePanel";
+import { NumberInput } from "./NumberInput";
 
 /**
  * Surface mode's 3D/contour view bounds (DESIGN.md §8) — lets the presenter
@@ -16,10 +16,8 @@ export function ViewBoundsPanel() {
   const bounds = useWorkspaceStore((s) => s.surfaceBounds);
   const setSurfaceBounds = useWorkspaceStore((s) => s.setSurfaceBounds);
 
-  const handleChange = (field: "xMin" | "xMax" | "yMin" | "yMax") => (e: ChangeEvent<HTMLInputElement>) => {
-    const parsed = Number(e.target.value);
-    if (!Number.isFinite(parsed)) return;
-    const next = { ...bounds, [field]: parsed };
+  const handleChange = (field: "xMin" | "xMax" | "yMin" | "yMax") => (value: number) => {
+    const next = { ...bounds, [field]: value };
     if (next.xMin >= next.xMax || next.yMin >= next.yMax) return; // keep a valid window — never commit an inverted range
     setSurfaceBounds(next);
   };
@@ -30,15 +28,15 @@ export function ViewBoundsPanel() {
         <label className="field-label" htmlFor="view-x-min">
           x range
         </label>
-        <input id="view-x-min" className="parameter-number-input" type="text" inputMode="decimal" value={bounds.xMin} onChange={handleChange("xMin")} />
-        <input className="parameter-number-input" type="text" inputMode="decimal" value={bounds.xMax} onChange={handleChange("xMax")} />
+        <NumberInput id="view-x-min" value={bounds.xMin} onValue={handleChange("xMin")} />
+        <NumberInput value={bounds.xMax} onValue={handleChange("xMax")} />
       </div>
       <div className="sim-settings-row">
         <label className="field-label" htmlFor="view-y-min">
           y range
         </label>
-        <input id="view-y-min" className="parameter-number-input" type="text" inputMode="decimal" value={bounds.yMin} onChange={handleChange("yMin")} />
-        <input className="parameter-number-input" type="text" inputMode="decimal" value={bounds.yMax} onChange={handleChange("yMax")} />
+        <NumberInput id="view-y-min" value={bounds.yMin} onValue={handleChange("yMin")} />
+        <NumberInput value={bounds.yMax} onValue={handleChange("yMax")} />
       </div>
       <button type="button" onClick={() => setSurfaceBounds(DEFAULT_SURFACE_BOUNDS)}>
         Reset to ±10

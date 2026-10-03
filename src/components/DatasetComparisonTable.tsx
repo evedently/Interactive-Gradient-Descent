@@ -2,6 +2,7 @@ import type { PrimaryVariable } from "../domain/rules/ruleCompiler";
 import type { DatasetSimulationRunner } from "../domain/simulation/DatasetSimulationRunner";
 import { useRunnersVersion } from "../hooks/useRunnersVersion";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
+import { formatLoss } from "../lib/format";
 
 interface Props {
   rules: RuleWorkspaceEntry[];
@@ -46,7 +47,7 @@ export function DatasetComparisonTable({ rules, runners, primaryVariables }: Pro
                   <span className={`status-badge status-${runner.status}`}>{runner.status}</span>
                 </td>
                 <td>{current.epoch}</td>
-                <td>{Number.isFinite(current.batchLoss) ? current.batchLoss.toFixed(6) : String(current.batchLoss)}</td>
+                <td>{formatLoss(current.batchLoss)}</td>
                 {primaryVariables.map((v) => (
                   <td key={v.name}>{current.coords[v.name].toFixed(4)}</td>
                 ))}

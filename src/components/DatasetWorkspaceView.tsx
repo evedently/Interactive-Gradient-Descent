@@ -7,6 +7,7 @@ import { DatasetRulePanel } from "./DatasetRulePanel";
 import { DatasetSurface3D } from "./DatasetSurface3D";
 import { MetricCharts, type DatasetRuleRunnerEntry } from "./MetricCharts";
 import { ReorderableRuleList } from "./ReorderableRuleList";
+import { RuleListToolbar } from "./RuleListToolbar";
 import { RunControlsPanel } from "./RunControlsPanel";
 import { SettingsGroup } from "./SettingsGroup";
 import { computeDatasetLossGrid, DATASET_SURFACE_RESOLUTION, type DatasetLossGrid } from "../domain/dataset/datasetLossGrid";
@@ -14,7 +15,7 @@ import { buildDatasetExperimentCsv } from "../domain/persistence/experimentCsv";
 import type { DatasetRunTarget } from "../domain/simulation/DatasetTypes";
 import { deriveSeed } from "../domain/simulation/SeededRng";
 import { expandBoundsToInclude, resolveDatasetSurfaceBounds, type DatasetSurfaceBoundsState } from "../domain/visualization/datasetBounds";
-import { pauseHiddenRunners, playVisibleRunners } from "../domain/simulation/ruleRunControl";
+import { pauseHiddenRunners } from "../domain/simulation/ruleRunControl";
 import { useContinuousRunAll } from "../hooks/useContinuousRunAll";
 import { useDatasetRunners } from "../hooks/useDatasetRunners";
 import { useRuleEntries } from "../hooks/useRuleEntries";
@@ -46,7 +47,6 @@ export function DatasetWorkspaceView() {
   const datasetRunTargetValue = useWorkspaceStore((s) => s.datasetRunTargetValue);
   const simLimits = useWorkspaceStore((s) => s.simLimits);
   const stepsPerSecond = useWorkspaceStore((s) => s.stepsPerSecond);
-  const addRule = useWorkspaceStore((s) => s.addRule);
 
   const runners = useDatasetRunners(rules, dataset, activePerExampleLoss, primaryVariables, datasetInitialValues, seed, batchSize, simLimits);
   const ready = dataset !== null && activePerExampleLoss !== null;
@@ -129,14 +129,8 @@ export function DatasetWorkspaceView() {
     return computeDatasetLossGrid(activePerExampleLoss, dataset, primaryVariables, bounds, DATASET_SURFACE_RESOLUTION);
   }, [canShowSurface, dataset, activePerExampleLoss, primaryVariables, bounds]);
 
-  const resetAll = () => {
-    for (const { runner } of entries) runner.reset();
-  };
-
   // Hidden rules never run: "Run all" skips them, and hiding a running rule pauses it.
   useEffect(() => pauseHiddenRunners(entries), [entries]);
-
-  const runAll = () => playVisibleRunners(entries);
 
   const exportCsv = () => {
     downloadTextFile("gradient-descent-dataset-experiment.csv", buildDatasetExperimentCsv(rules, runners, primaryVariables), "text/csv");
@@ -152,12 +146,7 @@ export function DatasetWorkspaceView() {
 
         {ready ? (
           <>
-            <div className="rule-list-toolbar">
-              <button onClick={addRule}>+ Add rule</button>
-              <button onClick={runAll}>Run all</button>
-              <button onClick={resetAll}>Reset all</button>
-              <button onClick={exportCsv}>Export CSV</button>
-            </div>
+            <RuleListToolbar entries={entries} onExportCsv={exportCsv} />
             <ReorderableRuleList
               entries={entries}
               renderEntry={({ rule, runner }) => <DatasetRulePanel rule={rule} runner={runner} canRemove={rules.length > 1} />}

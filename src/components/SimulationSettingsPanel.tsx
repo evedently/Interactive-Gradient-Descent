@@ -1,5 +1,6 @@
 import { useWorkspaceStore } from "../state/workspaceStore";
 import { CollapsiblePanel } from "./CollapsiblePanel";
+import { NumberInput } from "./NumberInput";
 
 const MAX_NOISE = 5;
 
@@ -22,17 +23,7 @@ export function SimulationSettingsPanel() {
         <label className="field-label" htmlFor="seed-input">
           Seed
         </label>
-        <input
-          id="seed-input"
-          className="seed-input"
-          type="number"
-          step={1}
-          value={seed}
-          onChange={(e) => {
-            const parsed = Number(e.target.value);
-            if (Number.isFinite(parsed)) setSeed(Math.trunc(parsed));
-          }}
-        />
+        <NumberInput id="seed-input" className="seed-input" type="number" step={1} value={seed} onValue={(value) => setSeed(Math.trunc(value))} />
         <span className="field-hint">applies on each rule's next Reset</span>
       </div>
       <div className="sim-settings-row">
@@ -48,16 +39,7 @@ export function SimulationSettingsPanel() {
           value={noiseLevel}
           onChange={(e) => setNoiseLevel(Number(e.target.value))}
         />
-        <input
-          className="parameter-number-input"
-          type="text"
-          inputMode="decimal"
-          value={noiseLevel}
-          onChange={(e) => {
-            const parsed = Number(e.target.value);
-            if (Number.isFinite(parsed)) setNoiseLevel(Math.max(0, parsed));
-          }}
-        />
+        <NumberInput value={noiseLevel} onValue={(value) => setNoiseLevel(Math.max(0, value))} />
       </div>
     </CollapsiblePanel>
   );

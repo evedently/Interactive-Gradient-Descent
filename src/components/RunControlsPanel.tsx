@@ -1,6 +1,7 @@
 import type { ChangeEvent } from "react";
 import { useWorkspaceStore } from "../state/workspaceStore";
 import { CollapsiblePanel } from "./CollapsiblePanel";
+import { isPositive, NumberInput } from "./NumberInput";
 
 const MIN_STEPS_PER_SECOND = 0.5;
 const MAX_STEPS_PER_SECOND = 60;
@@ -35,16 +36,11 @@ export function RunControlsPanel() {
         <label className="field-label" htmlFor="steps-per-second-input">
           Speed
         </label>
-        <input
+        <NumberInput
           id="steps-per-second-input"
-          className="parameter-number-input"
-          type="text"
-          inputMode="decimal"
           value={stepsPerSecond}
-          onChange={(e) => {
-            const parsed = Number(e.target.value);
-            if (Number.isFinite(parsed) && parsed > 0) setStepsPerSecond(Math.min(MAX_STEPS_PER_SECOND, parsed));
-          }}
+          isValid={isPositive}
+          onValue={(value) => setStepsPerSecond(Math.min(MAX_STEPS_PER_SECOND, value))}
         />
         <span className="field-hint">steps/sec, applies to every rule</span>
       </div>
@@ -63,33 +59,18 @@ export function RunControlsPanel() {
         <label className="field-label" htmlFor="max-abs-value-input">
           Max |value|
         </label>
-        <input
+        <NumberInput
           id="max-abs-value-input"
-          className="parameter-number-input"
-          type="text"
-          inputMode="decimal"
           value={simLimits.maxAbsPrimaryVariableValue}
-          onChange={(e) => {
-            const parsed = Number(e.target.value);
-            if (Number.isFinite(parsed) && parsed > 0) setSimLimits({ maxAbsPrimaryVariableValue: parsed });
-          }}
+          isValid={isPositive}
+          onValue={(value) => setSimLimits({ maxAbsPrimaryVariableValue: value })}
         />
       </div>
       <div className="sim-settings-row">
         <label className="field-label" htmlFor="max-abs-loss-input">
           Max loss
         </label>
-        <input
-          id="max-abs-loss-input"
-          className="parameter-number-input"
-          type="text"
-          inputMode="decimal"
-          value={simLimits.maxAbsLoss}
-          onChange={(e) => {
-            const parsed = Number(e.target.value);
-            if (Number.isFinite(parsed) && parsed > 0) setSimLimits({ maxAbsLoss: parsed });
-          }}
-        />
+        <NumberInput id="max-abs-loss-input" value={simLimits.maxAbsLoss} isValid={isPositive} onValue={(value) => setSimLimits({ maxAbsLoss: value })} />
       </div>
 
       <div className="sim-settings-row">

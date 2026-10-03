@@ -3,6 +3,7 @@ import { offsetToLineColumn } from "../domain/rules/ruleTypes";
 import type { DatasetRunTargetKind } from "../state/workspaceStore";
 import { useWorkspaceStore } from "../state/workspaceStore";
 import { CollapsiblePanel } from "./CollapsiblePanel";
+import { isPositive, NumberInput } from "./NumberInput";
 
 const MAX_BATCH_SIZE = 10_000;
 
@@ -113,16 +114,7 @@ export function DatasetPanel() {
         {primaryVariables.map((v) => (
           <label key={v.name} className="dataset-initial-value-field">
             {v.name} =
-            <input
-              className="parameter-number-input"
-              type="text"
-              inputMode="decimal"
-              value={datasetInitialValues[v.name] ?? 0}
-              onChange={(e) => {
-                const parsed = Number(e.target.value);
-                if (Number.isFinite(parsed)) setDatasetInitialValue(v.name, parsed);
-              }}
-            />
+            <NumberInput value={datasetInitialValues[v.name] ?? 0} onValue={(value) => setDatasetInitialValue(v.name, value)} />
           </label>
         ))}
       </div>
@@ -131,17 +123,13 @@ export function DatasetPanel() {
         <label className="field-label" htmlFor="batch-size-input">
           Batch size
         </label>
-        <input
+        <NumberInput
           id="batch-size-input"
-          className="parameter-number-input"
           type="number"
           min={1}
           max={MAX_BATCH_SIZE}
           value={batchSize}
-          onChange={(e) => {
-            const parsed = Number(e.target.value);
-            if (Number.isFinite(parsed)) setBatchSize(Math.min(MAX_BATCH_SIZE, parsed));
-          }}
+          onValue={(value) => setBatchSize(Math.min(MAX_BATCH_SIZE, value))}
         />
       </div>
 
@@ -159,15 +147,12 @@ export function DatasetPanel() {
           <option value="seconds">N seconds</option>
         </select>
         {datasetRunTargetKind !== "continuous" ? (
-          <input
-            className="parameter-number-input"
+          <NumberInput
             type="number"
             min={1}
             value={datasetRunTargetValue}
-            onChange={(e) => {
-              const parsed = Number(e.target.value);
-              if (Number.isFinite(parsed) && parsed > 0) setDatasetRunTarget(datasetRunTargetKind, parsed);
-            }}
+            isValid={isPositive}
+            onValue={(value) => setDatasetRunTarget(datasetRunTargetKind, value)}
           />
         ) : null}
       </div>

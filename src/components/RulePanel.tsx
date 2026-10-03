@@ -7,6 +7,7 @@ import type { RuleWorkspaceEntry } from "../state/workspaceStore";
 import { useWorkspaceStore } from "../state/workspaceStore";
 import type { SimulationRunner } from "../domain/simulation/SimulationRunner";
 import { useRunnerVersion } from "../hooks/useRunnerVersion";
+import { formatLoss } from "../lib/format";
 
 interface Props {
   rule: RuleWorkspaceEntry;
@@ -40,7 +41,7 @@ export function RulePanel({ rule, runner, canRemove }: Props) {
           <RuleLiveValues runner={runner} />
           <div className="rule-mini-status">
             <span>iter {current.iteration}</span>
-            <span>loss {Number.isFinite(current.loss) ? current.loss.toFixed(6) : String(current.loss)}</span>
+            <span>loss {formatLoss(current.loss)}</span>
             <span>
               x,y {current.x.toFixed(4)}, {current.y.toFixed(4)}
             </span>

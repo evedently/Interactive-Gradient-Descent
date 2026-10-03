@@ -1,6 +1,7 @@
 import type { SimulationRunner } from "../domain/simulation/SimulationRunner";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
 import { useRunnersVersion } from "../hooks/useRunnersVersion";
+import { formatLoss } from "../lib/format";
 
 interface Props {
   rules: RuleWorkspaceEntry[];
@@ -43,7 +44,7 @@ export function ComparisonTable({ rules, runners }: Props) {
                   <span className={`status-badge status-${runner.status}`}>{runner.status}</span>
                 </td>
                 <td>{current.iteration}</td>
-                <td>{Number.isFinite(current.loss) ? current.loss.toFixed(6) : String(current.loss)}</td>
+                <td>{formatLoss(current.loss)}</td>
                 <td>{current.x.toFixed(4)}</td>
                 <td>{current.y.toFixed(4)}</td>
               </tr>
