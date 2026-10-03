@@ -52,9 +52,15 @@ export class DatasetSimulationRunner extends RuleRunnerBase<DatasetTrajectoryPoi
     this.notify();
   }
 
-  /** Pending until the next Reset, mirroring surface mode's start-point semantics (DESIGN.md §9) — dataset mode's analogue since there's no draggable point (§7). */
+  /**
+   * Moves the starting point (e.g. after dragging the start marker). A rule
+   * that hasn't stepped yet jumps there immediately — there's no run to
+   * lose. Mid-run (or while running), it stays pending until the next
+   * Reset, so a drag never wipes out a run in progress (DESIGN.md §9).
+   */
   setInitialValues(values: Record<string, number>): void {
     this.initialValues = values;
+    if (this.iteration === 0 && this.status !== "running") this.reset();
   }
 
   /** Stops a continuous run automatically once reached; `null` runs indefinitely (DESIGN.md §18 Phase 7). Checked at the end of every successful `step()`. */

@@ -229,3 +229,31 @@ describe("DatasetSimulationRunner: epochs/seconds run target auto-pauses a conti
     expect(runner.current.epoch).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe("DatasetSimulationRunner: moving the starting point", () => {
+  it("setInitialValues_beforeAnyStep_movesTheCurrentPointImmediately", () => {
+    const runner = makeRunner(GRADIENT_DESCENT);
+    runner.setInitialValues({ weight: 2, bias: -1 });
+    expect(runner.current.coords).toEqual({ weight: 2, bias: -1 });
+    expect(runner.iteration).toBe(0);
+    expect(runner.trajectory).toHaveLength(1);
+  });
+
+  it("setInitialValues_midRun_keepsTheRunAndAppliesOnNextReset", () => {
+    const runner = makeRunner(GRADIENT_DESCENT);
+    runner.step();
+    const midRun = runner.current.coords;
+    runner.setInitialValues({ weight: 2, bias: -1 });
+    expect(runner.current.coords).toEqual(midRun);
+    expect(runner.iteration).toBe(1);
+    runner.reset();
+    expect(runner.current.coords).toEqual({ weight: 2, bias: -1 });
+  });
+
+  it("setInitialValues_whileRunningAtIterationZero_doesNotInterruptTheRun", () => {
+    const runner = makeRunner(GRADIENT_DESCENT);
+    runner.play();
+    runner.setInitialValues({ weight: 2, bias: -1 });
+    expect(runner.status).toBe("running");
+  });
+});
