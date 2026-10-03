@@ -8,18 +8,18 @@ export interface CanvasTransform {
   fromCanvas(px: number, py: number): { x: number; y: number };
 }
 
-/** Maps a square `size`×`size` canvas onto `bounds` — shared by both contour plots. */
-export function canvasTransform(bounds: GridBounds, size: number): CanvasTransform {
-  const width = bounds.xMax - bounds.xMin;
-  const height = bounds.yMax - bounds.yMin;
+/** Maps a `width`×`height` drawing area (square when `height` is omitted) onto `bounds` — shared by the contour plots and the data plot. */
+export function canvasTransform(bounds: GridBounds, width: number, height = width): CanvasTransform {
+  const spanX = bounds.xMax - bounds.xMin;
+  const spanY = bounds.yMax - bounds.yMin;
   return {
     toCanvas: (x, y) => ({
-      px: ((x - bounds.xMin) / width) * size,
-      py: size - ((y - bounds.yMin) / height) * size,
+      px: ((x - bounds.xMin) / spanX) * width,
+      py: height - ((y - bounds.yMin) / spanY) * height,
     }),
     fromCanvas: (px, py) => ({
-      x: bounds.xMin + (clamp(px, 0, size) / size) * width,
-      y: bounds.yMin + (1 - clamp(py, 0, size) / size) * height,
+      x: bounds.xMin + (clamp(px, 0, width) / width) * spanX,
+      y: bounds.yMin + (1 - clamp(py, 0, height) / height) * spanY,
     }),
   };
 }

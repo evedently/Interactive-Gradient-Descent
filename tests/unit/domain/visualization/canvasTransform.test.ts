@@ -29,6 +29,19 @@ describe("canvasTransform", () => {
   });
 });
 
+describe("canvasTransform (non-square)", () => {
+  const t = canvasTransform(BOUNDS, 400, 200);
+
+  it("toCanvas_nonSquare_scalesEachAxisToItsOwnSize", () => {
+    expect(t.toCanvas(10, -5)).toEqual({ px: 400, py: 200 });
+    expect(t.toCanvas(0, 0)).toEqual({ px: 200, py: 100 });
+  });
+
+  it("fromCanvas_nonSquare_clampsEachAxisToItsOwnSize", () => {
+    expect(t.fromCanvas(500, 300)).toEqual({ x: 10, y: -5 });
+  });
+});
+
 describe("contourLevels", () => {
   it("contourLevels_evenlySpacedFromMin", () => {
     expect(contourLevels(0, 10, 5)).toEqual([0, 2, 4, 6, 8]);

@@ -3,6 +3,7 @@ import { CollapsibleSecondaryPanel } from "./CollapsibleSecondaryPanel";
 import { DatasetComparisonTable } from "./DatasetComparisonTable";
 import { DatasetContourPlot2D } from "./DatasetContourPlot2D";
 import { DatasetPanel } from "./DatasetPanel";
+import { DataModelPlot } from "./dataset/DataModelPlot";
 import { DatasetRulePanel } from "./DatasetRulePanel";
 import { DatasetSurface3D } from "./DatasetSurface3D";
 import { MetricCharts, type DatasetRuleRunnerEntry } from "./MetricCharts";
@@ -156,19 +157,28 @@ export function DatasetWorkspaceView() {
       </div>
 
       <div className="center-view dataset-center-view">
-        {grid ? (
-          <DatasetSurface3D
-            entries={entries}
-            grid={grid}
-            primaryVariables={primaryVariables}
-            dataset={dataset!}
-            perExampleLoss={activePerExampleLoss!}
-            initialValues={datasetInitialValues}
-          />
-        ) : ready ? (
-          <MetricCharts entries={entries} primaryVariables={primaryVariables} />
+        {ready ? (
+          <div className="dataset-views">
+            <div className="dataset-view-pane">
+              <DataModelPlot entries={entries} />
+            </div>
+            <div className="dataset-view-pane">
+              {grid ? (
+                <DatasetSurface3D
+                  entries={entries}
+                  grid={grid}
+                  primaryVariables={primaryVariables}
+                  dataset={dataset!}
+                  perExampleLoss={activePerExampleLoss!}
+                  initialValues={datasetInitialValues}
+                />
+              ) : (
+                <MetricCharts entries={entries} primaryVariables={primaryVariables} />
+              )}
+            </div>
+          </div>
         ) : (
-          <p className="dataset-placeholder">Load a CSV and enter a valid per-example loss to start training.</p>
+          <p className="dataset-placeholder">Choose a sample or upload a CSV, then pick a model, to start training.</p>
         )}
       </div>
 

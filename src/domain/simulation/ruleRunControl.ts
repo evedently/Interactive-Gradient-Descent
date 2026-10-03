@@ -22,3 +22,9 @@ export function pauseHiddenRunners(entries: readonly VisibleRunnerEntry[]): void
     if (!rule.visible && runner.status === "running") runner.pause();
   }
 }
+
+/** The rule the dataset step inspector and batch highlight follow: the focused rule if it's still present and visible, otherwise the first visible rule. */
+export function pickFocusedEntry<E extends { rule: { id: string; visible: boolean } }>(entries: readonly E[], focusedRuleId: string | null): E | null {
+  const visible = entries.filter((e) => e.rule.visible);
+  return visible.find((e) => e.rule.id === focusedRuleId) ?? visible[0] ?? null;
+}
