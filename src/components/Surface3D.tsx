@@ -10,7 +10,7 @@ import type { RuleEntry } from "../hooks/useRuleEntries";
 import { useRunnersVersion } from "../hooks/useRunnersVersion";
 import { clamp } from "../lib/math";
 import { useWorkspaceStore } from "../state/workspaceStore";
-import { DragCatchPlane, MARKER_LIFT, RuleOverlayMarks, SCENE_CAMERA, StartMarker, SurfaceBackdrop, TRAJECTORY_LIFT } from "./surface3d/SceneParts";
+import { DRAG_PLANE_SIZE, DragCatchPlane, MARKER_LIFT, RuleOverlayMarks, SCENE_CAMERA, StartMarker, SurfaceBackdrop, TRAJECTORY_LIFT } from "./surface3d/SceneParts";
 import { useMarkerDrag } from "./surface3d/useMarkerDrag";
 
 export type RuleRunnerEntry = RuleEntry<SimulationRunner>;
@@ -18,9 +18,6 @@ export type RuleRunnerEntry = RuleEntry<SimulationRunner>;
 interface Props {
   entries: RuleRunnerEntry[];
 }
-
-/** Fixed, like everything else in the scene — `surfaceViewTransformFor` keeps the whole scene in the same visual footprint regardless of the presenter's view bounds. */
-const DRAG_PLANE_SIZE = 200;
 
 /**
  * One visible rule's overlay. `runner.current`/`.trajectory` are always in

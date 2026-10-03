@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import { computeDatasetLossGrid } from "../../../../src/domain/dataset/datasetLossGrid";
 import { compilePerExampleLoss } from "../../../../src/domain/dataset/perExampleLoss";
 import type { Dataset } from "../../../../src/domain/dataset/types";
-import { expandBoundsToInclude, initialDatasetBounds, resolveDatasetSurfaceBounds } from "../../../../src/domain/visualization/datasetBounds";
+import {
+  fitDatasetBounds,
+  initialDatasetBounds,
+  MAX_BOUNDS_SPAN_FACTOR,
+  resolveDatasetSurfaceBounds,
+  TrajectoryExtentTracker,
+  unionExtents,
+} from "../../../../src/domain/visualization/datasetBounds";
 
 const WEIGHT_BIAS = [{ name: "weight" }, { name: "bias" }];
 
@@ -29,30 +36,98 @@ describe("initialDatasetBounds", () => {
   });
 });
 
-describe("expandBoundsToInclude", () => {
-  const bounds = { xMin: -5, xMax: 5, yMin: -5, yMax: 5 };
+const HOME = { xMin: -5, xMax: 5, yMin: -5, yMax: 5 };
+const span = (b: { xMin: number; xMax: number; yMin: number; yMax: number }) => ({ x: b.xMax - b.xMin, y: b.yMax - b.yMin });
 
-  it("returns the exact same reference when the point is already inside", () => {
-    expect(expandBoundsToInclude(bounds, 1, -1)).toBe(bounds);
+describe("fitDatasetBounds", () => {
+  it("fitDatasetBounds_extentInsideCurrent_returnsSameReference", () => {
+    const current = { ...HOME };
+    expect(fitDatasetBounds(current, HOME, { xMin: -1, xMax: 1, yMin: -1, yMax: 1 })).toBe(current);
   });
 
-  it("expands to contain a point outside the current bounds, with margin", () => {
-    const next = expandBoundsToInclude(bounds, 10, 0);
-    expect(next).not.toBe(bounds);
-    expect(next.xMax).toBeGreaterThan(10);
-    expect(next.xMin).toBeLessThanOrEqual(-5);
+  it("fitDatasetBounds_noExtentAndCurrentIsHome_returnsSameReference", () => {
+    const current = { ...HOME };
+    expect(fitDatasetBounds(current, HOME, null)).toBe(current);
   });
 
-  it("expands on the y axis independently of x", () => {
-    const next = expandBoundsToInclude(bounds, 0, -20);
-    expect(next.yMin).toBeLessThan(-20);
-    expect(next.xMin).toBe(bounds.xMin);
-    expect(next.xMax).toBe(bounds.xMax);
+  it("fitDatasetBounds_extentOutside_growsToContainItWithMargin", () => {
+    const next = fitDatasetBounds(HOME, HOME, { xMin: 0, xMax: 12, yMin: -30, yMax: 0 });
+    expect(next.xMax).toBeGreaterThan(12);
+    expect(next.yMin).toBeLessThan(-30);
+    expect(next.xMin).toBeLessThanOrEqual(HOME.xMin);
   });
 
-  it("ignores a non-finite point rather than producing a non-finite bounds", () => {
-    expect(expandBoundsToInclude(bounds, NaN, 0)).toBe(bounds);
-    expect(expandBoundsToInclude(bounds, 0, Infinity)).toBe(bounds);
+  it("fitDatasetBounds_singlePointOutside_notDrawnOnTheEdge", () => {
+    const next = fitDatasetBounds(HOME, HOME, { xMin: 3, xMax: 3, yMin: -23, yMax: -23 });
+    const homeSpan = span(HOME).y;
+    expect(-23 - next.yMin).toBeGreaterThanOrEqual(homeSpan * 0.1 - 1e-9);
+  });
+
+  it("fitDatasetBounds_growingExtent_neverShrinksMidRun", () => {
+    let bounds = HOME;
+    let previous = span(bounds);
+    for (const reach of [6, 9, 15, 15.5, 30, 31]) {
+      bounds = fitDatasetBounds(bounds, HOME, { xMin: 0, xMax: reach, yMin: -1, yMax: 1 });
+      const now = span(bounds);
+      expect(now.x).toBeGreaterThanOrEqual(previous.x);
+      expect(bounds.xMax).toBeGreaterThan(reach);
+      previous = now;
+    }
+  });
+
+  it("fitDatasetBounds_afterReset_shrinksBackToHome", () => {
+    const grown = fitDatasetBounds(HOME, HOME, { xMin: 0, xMax: 400, yMin: -1, yMax: 1 });
+    expect(fitDatasetBounds(grown, HOME, { xMin: 0, xMax: 0, yMin: 0, yMax: 0 })).toEqual(HOME);
+    expect(fitDatasetBounds(grown, HOME, null)).toEqual(HOME);
+  });
+
+  it("fitDatasetBounds_hugeExtent_cappedRelativeToHome", () => {
+    const next = fitDatasetBounds(HOME, HOME, { xMin: -1e6, xMax: 1e6, yMin: 0, yMax: 1e9 });
+    expect(span(next).x).toBeLessThanOrEqual(span(HOME).x * MAX_BOUNDS_SPAN_FACTOR + 1e-9);
+    expect(span(next).y).toBeLessThanOrEqual(span(HOME).y * MAX_BOUNDS_SPAN_FACTOR + 1e-9);
+    // Stable once capped: a still-huge extent doesn't keep producing new bounds.
+    expect(fitDatasetBounds(next, HOME, { xMin: -1e6, xMax: 1e6, yMin: 0, yMax: 1e9 })).toBe(next);
+  });
+});
+
+describe("TrajectoryExtentTracker", () => {
+  const xy = (p: { a: number; b: number }) => [p.a, p.b] as const;
+
+  it("extentOf_points_coversThem", () => {
+    const tracker = new TrajectoryExtentTracker<{ a: number; b: number }>(xy);
+    expect(tracker.extentOf([{ a: 1, b: -2 }, { a: -3, b: 4 }])).toEqual({ xMin: -3, xMax: 1, yMin: -2, yMax: 4 });
+  });
+
+  it("extentOf_sameArrayGrows_includesNewPoints", () => {
+    const tracker = new TrajectoryExtentTracker<{ a: number; b: number }>(xy);
+    const trajectory = [{ a: 0, b: 0 }];
+    tracker.extentOf(trajectory);
+    trajectory.push({ a: 10, b: -10 });
+    expect(tracker.extentOf(trajectory)).toEqual({ xMin: 0, xMax: 10, yMin: -10, yMax: 0 });
+  });
+
+  it("extentOf_newArray_startsFresh", () => {
+    const tracker = new TrajectoryExtentTracker<{ a: number; b: number }>(xy);
+    tracker.extentOf([{ a: 0, b: 0 }, { a: 100, b: 100 }]);
+    expect(tracker.extentOf([{ a: 1, b: 1 }])).toEqual({ xMin: 1, xMax: 1, yMin: 1, yMax: 1 });
+  });
+
+  it("extentOf_nonFinitePoints_ignored", () => {
+    const tracker = new TrajectoryExtentTracker<{ a: number; b: number }>(xy);
+    expect(tracker.extentOf([{ a: NaN, b: 0 }, { a: 2, b: Infinity }])).toBeNull();
+    expect(tracker.extentOf([])).toBeNull();
+  });
+});
+
+describe("unionExtents", () => {
+  it("unionExtents_skipsNullsAndCoversTheRest", () => {
+    expect(unionExtents([null, { xMin: 0, xMax: 1, yMin: 0, yMax: 1 }, { xMin: -2, xMax: 0, yMin: 3, yMax: 4 }])).toEqual({
+      xMin: -2,
+      xMax: 1,
+      yMin: 0,
+      yMax: 4,
+    });
+    expect(unionExtents([null])).toBeNull();
   });
 });
 

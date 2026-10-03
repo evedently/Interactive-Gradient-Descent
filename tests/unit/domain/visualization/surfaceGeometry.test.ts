@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseExpression } from "../../../../src/domain/expr/parser";
 import { colorForLevelNormalized } from "../../../../src/domain/visualization/contourColor";
 import {
+  buildGeometryInView,
   buildSurfaceGeometry,
   DEFAULT_SURFACE_BOUNDS,
   SURFACE_RESOLUTION,
@@ -131,5 +132,31 @@ describe("surfaceViewTransformFor", () => {
     const t = surfaceViewTransformFor({ xMin: -3, xMax: 7, yMin: 100, yMax: 200 });
     for (const x of [-3, 0, 4.5, 7]) expect(t.toRawX(t.toVisualX(x))).toBeCloseTo(x, 9);
     for (const y of [100, 150, 200]) expect(t.toRawZ(t.toVisualZ(y))).toBeCloseTo(y, 9);
+  });
+});
+
+describe("buildGeometryInView", () => {
+  function gridOver(bounds: { xMin: number; xMax: number; yMin: number; yMax: number }, resolution = 5) {
+    const xs = Float64Array.from({ length: resolution }, (_, i) => bounds.xMin + ((bounds.xMax - bounds.xMin) * i) / (resolution - 1));
+    const ys = Float64Array.from({ length: resolution }, (_, i) => bounds.yMin + ((bounds.yMax - bounds.yMin) * i) / (resolution - 1));
+    const values = Float64Array.from({ length: resolution * resolution }, (_, i) => i);
+    return { resolution, xs, ys, values };
+  }
+
+  it("buildGeometryInView_hugeParameterWindow_staysInFixedVisualFootprint", () => {
+    const bounds = { xMin: -60_000, xMax: 40_000, yMin: 1_000, yMax: 3_000 };
+    const { geometry } = buildGeometryInView(gridOver(bounds), surfaceViewTransformFor(bounds));
+    const positions = geometry.attributes.position.array as Float32Array;
+    for (let i = 0; i < positions.length; i += 3) {
+      expect(Math.abs(positions[i])).toBeLessThanOrEqual(10 + 1e-6);
+      expect(Math.abs(positions[i + 2])).toBeLessThanOrEqual(10 + 1e-6);
+    }
+  });
+
+  it("buildGeometryInView_defaultWindow_identity", () => {
+    const { geometry } = buildGeometryInView(gridOver(DEFAULT_SURFACE_BOUNDS), surfaceViewTransformFor(DEFAULT_SURFACE_BOUNDS));
+    const positions = geometry.attributes.position.array as Float32Array;
+    expect(positions[0]).toBeCloseTo(-10);
+    expect(positions[2]).toBeCloseTo(-10);
   });
 });

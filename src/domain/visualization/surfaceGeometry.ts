@@ -141,10 +141,12 @@ export function surfaceViewTransformFor(bounds: GridBounds): SurfaceViewTransfor
  * existing callers/tests that don't pass `bounds` see no change at all.
  */
 export function buildSurfaceGeometry(ast: ExprNode, bounds: GridBounds = DEFAULT_SURFACE_BOUNDS): SurfaceGeometryResult {
-  const grid = computeLossGrid(ast, bounds, SURFACE_RESOLUTION);
-  const t = surfaceViewTransformFor(bounds);
-  const visualGrid = { ...grid, xs: Float64Array.from(grid.xs, t.toVisualX), ys: Float64Array.from(grid.ys, t.toVisualZ) };
-  return buildGeometryFromGrid(visualGrid);
+  return buildGeometryInView(computeLossGrid(ast, bounds, SURFACE_RESOLUTION), surfaceViewTransformFor(bounds));
+}
+
+/** Builds a mesh from a grid sampled in raw parameter space, with X/Z mapped through `transform` into the fixed visual footprint (see `surfaceViewTransformFor`). Used by both surface and dataset mode. */
+export function buildGeometryInView(grid: Pick<LossGrid, "resolution" | "xs" | "ys" | "values">, transform: SurfaceViewTransform): SurfaceGeometryResult {
+  return buildGeometryFromGrid({ ...grid, xs: Float64Array.from(grid.xs, transform.toVisualX), ys: Float64Array.from(grid.ys, transform.toVisualZ) });
 }
 
 /** Normalizes a raw loss value to the same visual height scale as the surface mesh, for markers that must sit exactly on it. */

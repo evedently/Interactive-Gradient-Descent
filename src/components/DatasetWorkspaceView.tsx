@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { CollapsibleSecondaryPanel } from "./CollapsibleSecondaryPanel";
 import { DatasetComparisonTable } from "./DatasetComparisonTable";
 import { DatasetContourPlot2D } from "./DatasetContourPlot2D";
@@ -17,10 +17,10 @@ import { computeDatasetLossGrid, DATASET_SURFACE_RESOLUTION, type DatasetLossGri
 import { buildDatasetExperimentCsv } from "../domain/persistence/experimentCsv";
 import type { DatasetRunTarget } from "../domain/simulation/DatasetTypes";
 import { deriveSeed } from "../domain/simulation/SeededRng";
-import { expandBoundsToInclude, resolveDatasetSurfaceBounds, type DatasetSurfaceBoundsState } from "../domain/visualization/datasetBounds";
 import { pauseHiddenRunners } from "../domain/simulation/ruleRunControl";
 import { useContinuousRunAll } from "../hooks/useContinuousRunAll";
 import { useDatasetRunners } from "../hooks/useDatasetRunners";
+import { useDatasetViewBounds } from "../hooks/useDatasetViewBounds";
 import { useRuleEntries } from "../hooks/useRuleEntries";
 import { downloadTextFile } from "../lib/downloadFile";
 import { useWorkspaceStore } from "../state/workspaceStore";
@@ -94,39 +94,12 @@ export function DatasetWorkspaceView() {
 
   useContinuousRunAll(entries.map((e) => e.runner), stepsPerSecond);
 
-  // Auto-fit bounds for the loss surface/contour (DESIGN.md §8's auto-fit,
-  // adapted to Phase 7's extension): re-seeded only when the problem itself
-  // changes (new dataset, newly-compiled per-example loss, or renamed
-  // primary variables — see `resolveDatasetSurfaceBounds`'s own doc
-  // comment), and otherwise only ever GROWN — never shrunk mid-run, and
-  // never reseeded by a start-point change — just enough to keep every
-  // visible rule's current point on the grid. This means the (expensive,
-  // O(resolution^2 * dataset rows)) grid recomputes only on these discrete
-  // events, never on every step and never on a marker drag.
-  const [boundsState, setBoundsState] = useState<DatasetSurfaceBoundsState>(() =>
-    resolveDatasetSurfaceBounds(null, dataset, activePerExampleLoss, primaryVariables, datasetInitialValues),
-  );
-
-  useEffect(() => {
-    setBoundsState((current) => resolveDatasetSurfaceBounds(current, dataset, activePerExampleLoss, primaryVariables, datasetInitialValues));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataset, activePerExampleLoss, primaryVariables]);
-
-  useEffect(() => {
-    if (!canShowSurface) return;
-    const [aName, bName] = primaryVariables.map((v) => v.name);
-    setBoundsState((current) => {
-      let next = current.bounds;
-      for (const { rule, runner } of entries) {
-        if (!rule.visible) continue;
-        const coords = runner.current.coords;
-        next = expandBoundsToInclude(next, coords[aName], coords[bName]);
-      }
-      return next === current.bounds ? current : { ...current, bounds: next };
-    });
+  const bounds = useDatasetViewBounds(entries, canShowSurface, {
+    dataset,
+    perExampleLoss: activePerExampleLoss,
+    primaryVariables,
+    initialValues: datasetInitialValues,
   });
-
-  const bounds = boundsState.bounds;
   const grid: DatasetLossGrid | null = useMemo(() => {
     if (!canShowSurface || !dataset || !activePerExampleLoss) return null;
     return computeDatasetLossGrid(activePerExampleLoss, dataset, primaryVariables, bounds, DATASET_SURFACE_RESOLUTION);

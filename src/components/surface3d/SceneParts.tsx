@@ -7,6 +7,9 @@ import { VISUAL_HEIGHT } from "../../domain/visualization/surfaceGeometry";
 /** Shared by both 3D views so surface and dataset mode frame their scenes identically. */
 export const SCENE_CAMERA = { position: [8, 18, 22] as [number, number, number], fov: 50, near: 0.1, far: 200 };
 
+/** The drag-catch plane's size: the scene always fits the same fixed visual footprint (see `surfaceViewTransformFor`), so one size suits both 3D views. */
+export const DRAG_PLANE_SIZE = 200;
+
 /** How far above the surface every marker sphere and arrow floats, so it never z-fights the mesh. */
 export const MARKER_LIFT = 0.05;
 /** Trajectory lines float slightly above the surface for the same reason. */
