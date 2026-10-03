@@ -32,6 +32,27 @@ describe("workspaceStore: dataset mode", () => {
     }
   });
 
+  it("setMode_dataset_keepsEachRulesOwnLogicRenamedToWAndB", () => {
+    const [momentum] = store().rules;
+    store().setMode("dataset");
+    const translated = store().rules[0];
+    expect(translated.id).toBe(momentum.id);
+    expect(translated.sourceText).toContain("parameter beta");
+    expect(translated.sourceText).toContain("w_next = w + vx_next");
+    expect(translated.errors).toEqual([]);
+  });
+
+  it("setMode_handWrittenRule_survivesARoundTrip", () => {
+    const [rule] = store().rules;
+    const custom = "parameter eta = 0.05 range 0.0001 to 1 log\nx_next = x - eta * gx * 2\ny_next = y - eta * gy";
+    store().setRuleSourceText(rule.id, custom);
+    store().setMode("dataset");
+    expect(store().rules[0].sourceText).toBe("parameter eta = 0.05 range 0.0001 to 1 log\nw_next = w - eta * gw * 2\nb_next = b - eta * gb");
+    store().setMode("surface");
+    expect(store().rules[0].sourceText).toBe(custom);
+    expect(store().rules[0].errors).toEqual([]);
+  });
+
   it("setMode_backToSurface_restoresXAndYRules", () => {
     store().setMode("dataset");
     store().setMode("surface");

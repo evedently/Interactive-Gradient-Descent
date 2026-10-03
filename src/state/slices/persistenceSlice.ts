@@ -10,13 +10,11 @@ import { primaryVariablesFor } from "./datasetSlice";
 
 /**
  * Every rule's OWN saved text is re-compiled against the snapshot's
- * primary variables — never regenerated to a default template, unlike a
- * live rename (DESIGN.md §9's rename-safety rule doesn't apply here: a
- * snapshot's rules were always written for its OWN saved primaryVariables,
- * so this should ordinarily just succeed). A rule that still fails to
- * compile (a hand-edited/corrupted file) falls back to the same
- * always-valid template a rename uses, so the workspace never loads into a
- * broken state — its saved text and errors are preserved and shown.
+ * primary variables, unchanged — a snapshot's rules were always written for
+ * its own saved primaryVariables, so this should ordinarily just succeed.
+ * A rule that still fails to compile (a hand-edited/corrupted file) falls
+ * back to the always-valid default rule, so the workspace never loads into
+ * a broken state — its saved text and errors are preserved and shown.
  */
 function rulesFromSnapshot(snapshot: WorkspaceSnapshot, primaryVariables: readonly PrimaryVariable[]): RuleWorkspaceEntry[] {
   return snapshot.rules.map((r) => {

@@ -6,7 +6,7 @@ import { isTemplateKind, MODEL_TEMPLATES, type ModelKind } from "../../domain/da
 import type { Dataset } from "../../domain/dataset/types";
 import { SURFACE_PRIMARY_VARIABLES, type PrimaryVariable } from "../../domain/rules/ruleCompiler";
 import { shallowEqualArrays } from "../../lib/arrays";
-import { regenerateRulesForPrimaryVariables } from "../ruleEntries";
+import { translateRulesForPrimaryVariables } from "../ruleEntries";
 import type { DatasetSlice, WorkspaceMode, WorkspaceState } from "../workspaceState";
 
 /** Presenter left the custom model's parameters unnamed (DESIGN.md §4: "defaulting to theta_0, theta_1, ... if left unnamed"). */
@@ -48,7 +48,7 @@ function modelConfigOf(state: WorkspaceState): DatasetModelConfig {
  * Re-resolves the dataset model after any change to its inputs (`changes`
  * merged over `state`) and returns the whole store patch: the changed
  * inputs, the mapped dataset and compiled formula, and — in dataset mode,
- * only when the parameter names actually changed — regenerated rules and
+ * only when the parameter names actually changed — translated rules and
  * re-keyed initial values. Switching between templates (both `w`, `b`)
  * therefore keeps every rule's text.
  *
@@ -76,7 +76,7 @@ function resolveModelPatch(state: WorkspaceState, changes: Partial<WorkspaceStat
   return {
     ...patch,
     primaryVariables: model.primaryVariables,
-    rules: regenerateRulesForPrimaryVariables(state.rules, model.primaryVariables),
+    rules: translateRulesForPrimaryVariables(state.rules, state.primaryVariables, model.primaryVariables),
     datasetInitialValues: initialValuesFor(model.primaryVariables, state.datasetInitialValues),
   };
 }
@@ -134,7 +134,7 @@ export const createDatasetSlice: StateCreator<WorkspaceState, [], [], DatasetSli
       return {
         mode,
         primaryVariables,
-        rules: regenerateRulesForPrimaryVariables(state.rules, primaryVariables),
+        rules: translateRulesForPrimaryVariables(state.rules, state.primaryVariables, primaryVariables),
         datasetInitialValues: mode === "dataset" ? initialValuesFor(primaryVariables, state.datasetInitialValues) : state.datasetInitialValues,
       };
     }),

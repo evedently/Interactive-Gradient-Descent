@@ -1,5 +1,6 @@
 import { compileRule, type CompiledRule, type PrimaryVariable } from "../domain/rules/ruleCompiler";
 import { parseRuleSource } from "../domain/rules/ruleParser";
+import { renamePrimaryVariables } from "../domain/rules/renamePrimaryVariables";
 import type { RuleError } from "../domain/rules/ruleTypes";
 
 export interface RuleWorkspaceEntry {
@@ -78,7 +79,7 @@ export function nextPaletteColor(): string {
   return color;
 }
 
-/** A plain, always-compilable gradient-descent template for an arbitrary pair of primary variables (DESIGN.md §4/§7) — used for new rules in dataset mode, and to regenerate every rule when the workspace's primary-variable names change (renaming the optimized variables is a deliberate, disruptive action; existing rule text referencing the old names can't be reinterpreted automatically, so it's replaced with a working default rather than left erroring). */
+/** A plain, always-compilable gradient-descent template for an arbitrary pair of primary variables (DESIGN.md §4/§7) — used for new rules in dataset mode, and as the fallback a rule runs when its own text doesn't compile. */
 export function defaultRuleSourceFor(primaryVariables: readonly PrimaryVariable[]): string {
   const [a, b] = primaryVariables;
   return [
@@ -88,12 +89,28 @@ export function defaultRuleSourceFor(primaryVariables: readonly PrimaryVariable[
   ].join("\n");
 }
 
-/** Every rule's text/compiled form is replaced with the plain-gradient-descent default for the new primary variables — a rule written against `x`/`y` can't be reinterpreted against `weight`/`bias` (or vice versa), so switching modes or renaming dataset-mode variables resets rule text to a known-working default rather than leaving it erroring (DESIGN.md §4/§7, Phase 7). */
-export function regenerateRulesForPrimaryVariables(rules: RuleWorkspaceEntry[], primaryVariables: readonly PrimaryVariable[]): RuleWorkspaceEntry[] {
-  const sourceText = defaultRuleSourceFor(primaryVariables);
-  const { compiled } = compileRuleSource(sourceText, primaryVariables);
-  if (!compiled) throw new Error("defaultRuleSourceFor produced an uncompilable rule — this is a build-time invariant");
-  return rules.map((r) => ({ ...r, sourceText, errors: [], activeCompiledRule: compiled }));
+/**
+ * Carries every rule over to new primary variables (switching surface <->
+ * dataset mode, changing the model, or renaming custom parameters) by
+ * renaming what each rule derives from them — `x` -> `w`, `gx` -> `gw`,
+ * `x_next` -> `w_next` — so presets and hand-written rules survive the
+ * switch instead of being reset to plain gradient descent.
+ *
+ * If a rule can't be renamed safely (it already uses one of the new names)
+ * or the result doesn't compile, its text is kept as-is with its errors
+ * shown, and it runs the always-valid default rule for the new variables
+ * until fixed — the same fallback loading a saved workspace uses.
+ */
+export function translateRulesForPrimaryVariables(
+  rules: RuleWorkspaceEntry[],
+  from: readonly PrimaryVariable[],
+  to: readonly PrimaryVariable[],
+): RuleWorkspaceEntry[] {
+  return rules.map((rule) => {
+    const sourceText = renamePrimaryVariables(rule.sourceText, from, to) ?? rule.sourceText;
+    const { errors, compiled } = compileRuleSource(sourceText, to);
+    return { ...rule, sourceText, errors, activeCompiledRule: compiled ?? mustCompile(defaultRuleSourceFor(to), to) };
+  });
 }
 
 /** Applies `update` to the rule with `id`, leaving every other rule (and its identity) untouched. */

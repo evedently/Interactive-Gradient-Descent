@@ -105,7 +105,7 @@ export interface SettingsSlice {
 
 /** Surface vs. dataset mode, and everything dataset mode needs (DESIGN.md §7/§18 Phase 7). */
 export interface DatasetSlice {
-  /** Surface (the permanent default, §7) vs. dataset (Phase 7, §18). Switching modes regenerates every rule's text against the new primary variables (see `defaultRuleSourceFor`). */
+  /** Surface (the permanent default, §7) vs. dataset (Phase 7, §18). Switching modes carries every rule over to the new primary variables (see `translateRulesForPrimaryVariables`). */
   mode: WorkspaceMode;
   /** `[x, y]` in surface mode (fixed); the model's two parameters in dataset mode (`w`, `b` for templates, the presenter's names for custom). Every rule is compiled against this list. */
   primaryVariables: readonly PrimaryVariable[];
