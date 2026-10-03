@@ -2,3 +2,4 @@ node_modules/
 CLAUDE.md
 DESIGN.md
 .claude
+tsconfig.tsbuildinfo
