@@ -1,6 +1,7 @@
 import type { DatasetRunTargetKind } from "../../state/workspaceStore";
 import { useWorkspaceStore } from "../../state/workspaceStore";
 import { isPositive, NumberInput } from "../NumberInput";
+import { CollapsiblePanel } from "../CollapsiblePanel";
 
 const MAX_BATCH_SIZE = 10_000;
 
@@ -16,8 +17,7 @@ export function TrainingSection() {
   const setDatasetRunTarget = useWorkspaceStore((s) => s.setDatasetRunTarget);
 
   return (
-    <div className="dataset-section">
-      <h3 className="dataset-section-title">3. Training</h3>
+    <CollapsiblePanel title="3. Training" className="dataset-section">
       <label className="field-label">Initial values</label>
       <div className="dataset-initial-values-row">
         {primaryVariables.map((v) => (
@@ -66,6 +66,6 @@ export function TrainingSection() {
           />
         ) : null}
       </div>
-    </div>
+    </CollapsiblePanel>
   );
 }

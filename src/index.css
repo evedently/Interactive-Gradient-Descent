@@ -878,10 +878,12 @@ body {
   padding-bottom: 0;
 }
 
-.dataset-section-title {
-  margin: 0 0 8px 0;
+/* Each setup step (Data / Model / Training) collapses on its own. */
+.dataset-section > .collapsible-header h2 {
   font-size: 12px;
   font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
   color: #c3c8d0;
 }
 

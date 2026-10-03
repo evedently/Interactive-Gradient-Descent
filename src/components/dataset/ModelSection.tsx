@@ -2,6 +2,7 @@ import { isTemplateKind, MODEL_TEMPLATES, PREDICTION_NAME, type ModelKind } from
 import { offsetToLineColumn } from "../../domain/rules/ruleTypes";
 import { useWorkspaceStore } from "../../state/workspaceStore";
 import { FormulaDisplay } from "./FormulaDisplay";
+import { CollapsiblePanel } from "../CollapsiblePanel";
 
 const MODEL_OPTIONS: { kind: ModelKind; label: string }[] = [
   { kind: "linear", label: MODEL_TEMPLATES.linear.label },
@@ -19,8 +20,7 @@ export function ModelSection() {
   const activePerExampleLoss = useWorkspaceStore((s) => s.activePerExampleLoss);
 
   return (
-    <div className="dataset-section">
-      <h3 className="dataset-section-title">2. Model</h3>
+    <CollapsiblePanel title="2. Model" className="dataset-section">
       <div className="model-kind-options" role="radiogroup" aria-label="Model">
         {MODEL_OPTIONS.map((option) => (
           <label key={option.kind} className="model-kind-option">
@@ -46,7 +46,7 @@ export function ModelSection() {
       {activePerExampleLoss && !modelDefinesPrediction ? (
         <p className="warning-badge">Define `{PREDICTION_NAME} = …` to draw the model and use Predict. Training still works without it.</p>
       ) : null}
-    </div>
+    </CollapsiblePanel>
   );
 }
 

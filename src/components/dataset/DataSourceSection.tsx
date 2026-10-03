@@ -1,5 +1,6 @@
 import { SAMPLE_DATASETS } from "../../samples";
 import { useWorkspaceStore } from "../../state/workspaceStore";
+import { CollapsiblePanel } from "../CollapsiblePanel";
 
 const NO_SAMPLE = "";
 
@@ -28,8 +29,7 @@ export function DataSourceSection() {
   };
 
   return (
-    <div className="dataset-section">
-      <h3 className="dataset-section-title">1. Data</h3>
+    <CollapsiblePanel title="1. Data" className="dataset-section">
       <div className="sim-settings-row">
         <label className="field-label" htmlFor="sample-dataset-select">
           Sample
@@ -80,7 +80,7 @@ export function DataSourceSection() {
           />
         </>
       ) : null}
-    </div>
+    </CollapsiblePanel>
   );
 }
 
