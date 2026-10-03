@@ -16,6 +16,7 @@ import { deriveSeed } from "../domain/simulation/SeededRng";
 import { pauseHiddenRunners, playVisibleRunners } from "../domain/simulation/ruleRunControl";
 import { useContinuousRunAll } from "../hooks/useContinuousRunAll";
 import { useMultiRunners } from "../hooks/useMultiRunners";
+import { useRuleEntries } from "../hooks/useRuleEntries";
 import { downloadTextFile } from "../lib/downloadFile";
 import { useWorkspaceStore } from "../state/workspaceStore";
 
@@ -33,7 +34,7 @@ export function SurfaceWorkspaceView() {
   // One runner per rule, replaced only when the shared resolved loss or
   // that rule's own compiled rule changes (DESIGN.md §9) — see useMultiRunners.
   const runners = useMultiRunners(rules, activeLoss, startPoint, seed, noiseLevel, simLimits);
-  const entries: RuleRunnerEntry[] = rules.map((rule) => ({ rule, runner: runners.get(rule.id)! }));
+  const entries: RuleRunnerEntry[] = useRuleEntries(rules, runners);
 
   // Dragging the start point must not reset an in-progress run (DESIGN.md
   // §9) — it only updates where each rule's future Reset will seed to.

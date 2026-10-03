@@ -8,14 +8,12 @@ import { evaluateLoss } from "../domain/lossFunction";
 import type { SimulationRunner } from "../domain/simulation/SimulationRunner";
 import { decimateForDisplay, MAX_RENDERED_TRAJECTORY_POINTS } from "../domain/visualization/decimate";
 import { buildSurfaceGeometry, normalizeHeight, surfaceViewTransformFor, VISUAL_HEIGHT, type SurfaceViewTransform } from "../domain/visualization/surfaceGeometry";
+import type { RuleEntry } from "../hooks/useRuleEntries";
 import { useRunnersVersion } from "../hooks/useRunnersVersion";
 import type { RuleWorkspaceEntry } from "../state/workspaceStore";
 import { useWorkspaceStore } from "../state/workspaceStore";
 
-export interface RuleRunnerEntry {
-  rule: RuleWorkspaceEntry;
-  runner: SimulationRunner;
-}
+export type RuleRunnerEntry = RuleEntry<SimulationRunner>;
 
 interface Props {
   entries: RuleRunnerEntry[];

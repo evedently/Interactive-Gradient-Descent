@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Steppable } from "../domain/simulation/RunnerInterfaces";
+import { useStableList } from "./useStableList";
 
 /**
  * Drives every runner in `runners` at the same rate, independently — one
@@ -13,7 +14,8 @@ import type { Steppable } from "../domain/simulation/RunnerInterfaces";
  * (never per-rule) — it only paces how often `.step()` is called from this
  * RAF loop, so it takes effect immediately with no rebuild/reset needed.
  */
-export function useContinuousRunAll(runners: Steppable[], stepsPerSecond: number): void {
+export function useContinuousRunAll(runnerList: readonly Steppable[], stepsPerSecond: number): void {
+  const runners = useStableList(runnerList);
   const lastStepTimes = useRef(new Map<Steppable, number>());
 
   useEffect(() => {

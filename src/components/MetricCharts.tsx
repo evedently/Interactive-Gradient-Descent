@@ -3,15 +3,12 @@ import type { PrimaryVariable } from "../domain/rules/ruleCompiler";
 import type { DatasetSimulationRunner } from "../domain/simulation/DatasetSimulationRunner";
 import type { DatasetTrajectoryPoint } from "../domain/simulation/DatasetTypes";
 import { useRunnersVersion } from "../hooks/useRunnersVersion";
-import type { RuleWorkspaceEntry } from "../state/workspaceStore";
+import type { RuleEntry } from "../hooks/useRuleEntries";
 
 const CHART_WIDTH = 320;
 const CHART_HEIGHT = 110;
 
-export interface DatasetRuleRunnerEntry {
-  rule: RuleWorkspaceEntry;
-  runner: DatasetSimulationRunner;
-}
+export type DatasetRuleRunnerEntry = RuleEntry<DatasetSimulationRunner>;
 
 interface ChartProps {
   title: string;

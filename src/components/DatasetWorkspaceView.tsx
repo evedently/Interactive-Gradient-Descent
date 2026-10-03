@@ -17,6 +17,7 @@ import { expandBoundsToInclude, resolveDatasetSurfaceBounds, type DatasetSurface
 import { pauseHiddenRunners, playVisibleRunners } from "../domain/simulation/ruleRunControl";
 import { useContinuousRunAll } from "../hooks/useContinuousRunAll";
 import { useDatasetRunners } from "../hooks/useDatasetRunners";
+import { useRuleEntries } from "../hooks/useRuleEntries";
 import { downloadTextFile } from "../lib/downloadFile";
 import { useWorkspaceStore } from "../state/workspaceStore";
 
@@ -49,7 +50,7 @@ export function DatasetWorkspaceView() {
 
   const runners = useDatasetRunners(rules, dataset, activePerExampleLoss, primaryVariables, datasetInitialValues, seed, batchSize, simLimits);
   const ready = dataset !== null && activePerExampleLoss !== null;
-  const entries: DatasetRuleRunnerEntry[] = ready ? rules.map((rule) => ({ rule, runner: runners.get(rule.id)! })) : [];
+  const entries: DatasetRuleRunnerEntry[] = useRuleEntries(rules, runners, ready);
   const canShowSurface = ready && primaryVariables.length === 2;
 
   // Dataset mode's analogue of surface mode's start-point drag (DESIGN.md
